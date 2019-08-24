@@ -1,0 +1,292 @@
+Microsoft Windows [Version 10.0.17763.615]
+(c) 2018 Microsoft Corporation. All rights reserved.
+
+C:\Users\tpc949>spark-shell
+19/08/24 00:01:20 WARN NativeCodeLoader: Unable to load native-hadoop library for your platform... using builtin-java classes where applicable
+Using Spark's default log4j profile: org/apache/spark/log4j-defaults.properties
+Setting default log level to "WARN".
+To adjust logging level use sc.setLogLevel(newLevel). For SparkR, use setLogLevel(newLevel).
+Spark context Web UI available at http://C257984.wks.anadarko.com:4040
+Spark context available as 'sc' (master = local[*], app id = local-1566622895744).
+Spark session available as 'spark'.
+Welcome to
+      ____              __
+     / __/__  ___ _____/ /__
+    _\ \/ _ \/ _ `/ __/  '_/
+   /___/ .__/\_,_/_/ /_/\_\   version 2.4.3
+      /_/
+
+Using Scala version 2.11.12 (Java HotSpot(TM) 64-Bit Server VM, Java 1.8.0_201)
+Type in expressions to have them evaluated.
+Type :help for more information.
+
+scala> import org.apache.spark.sql._
+import org.apache.spark.sql._
+
+scala> import org.apache.spark.sql.types._
+import org.apache.spark.sql.types._
+
+scala> import org.apache.commons.lang.StringUtils
+import org.apache.commons.lang.StringUtils
+
+scala> import java.util.TimeZone
+import java.util.TimeZone
+
+scala> import java.text.SimpleDateFormat
+import java.text.SimpleDateFormat
+
+scala> val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+warning: there was one deprecation warning; re-run with -deprecation for details
+sqlContext: org.apache.spark.sql.SQLContext = org.apache.spark.sql.SQLContext@321302bc
+
+scala> val airportsDF = sqlContext.read.option("delimiter",",").option("header", "true").option("inferSchema", "true").csv("file:////C:/Users/tpc949/next/datastax/data/usa_airports_details.csv").filter(col("IATA").isNotNull)
+airportsDF: org.apache.spark.sql.Dataset[org.apache.spark.sql.Row] = [AIRPORT_ID: int, AIRPORT_NAME: string ... 11 more fields]
+
+scala> airportsDF.count()
+res0: Long = 1257
+
+
+scala> airportsDF.printSchema()
+root
+ |-- AIRPORT_ID: integer (nullable = true)
+ |-- AIRPORT_NAME: string (nullable = true)
+ |-- CITY: string (nullable = true)
+ |-- COUNTRY: string (nullable = true)
+ |-- IATA: string (nullable = true)
+ |-- ICAO: string (nullable = true)
+ |-- LATITUDE: double (nullable = true)
+ |-- LONGITUDE: double (nullable = true)
+ |-- ALTITUDE: integer (nullable = true)
+ |-- TIMEZONE_OFFSET: integer (nullable = true)
+ |-- DST: string (nullable = true)
+ |-- TIMEZONE_CODE: string (nullable = true)
+ |-- TYPE: string (nullable = true)
+ 
+ 
+scala> airportsDF.show()
++----------+--------------------+----------------+-------------+----+----+-----------+------------+--------+---------------+---+-----------------+-------+
+|AIRPORT_ID|        AIRPORT_NAME|            CITY|      COUNTRY|IATA|ICAO|   LATITUDE|   LONGITUDE|ALTITUDE|TIMEZONE_OFFSET|DST|    TIMEZONE_CODE|   TYPE|
++----------+--------------------+----------------+-------------+----+----+-----------+------------+--------+---------------+---+-----------------+-------+
+|      3411|Barter Island LRR...|   Barter Island|United States| BTI|PABA|70.13400269|-143.5820007|       2|             -9|  A|America/Anchorage|airport|
+|      3413|Cape Lisburne LRR...|   Cape Lisburne|United States| LUR|PALU|68.87509918|-166.1100006|      16|             -9|  A|America/Anchorage|airport|
+|      3414|Point Lay LRRS Ai...|       Point Lay|United States| PIZ|PPIZ|69.73290253|-163.0050049|      22|             -9|  A|America/Anchorage|airport|
+|      3415|Hilo Internationa...|            Hilo|United States| ITO|PHTO|19.72139931|-155.0480042|      38|            -10|  N| Pacific/Honolulu|airport|
+|      3416|Orlando Executive...|         Orlando|United States| ORL|KORL|    28.5455|  -81.332901|     113|             -5|  A| America/New_York|airport|
+|      3417|     Bettles Airport|         Bettles|United States| BTT|PABT|66.91390228| -151.529007|     647|             -9|  A|America/Anchorage|airport|
+|      3419|Indian Mountain L...|Indian Mountains|United States| UTO|PAIM|65.99279785|-153.7039948|    1273|             -9|  A|America/Anchorage|airport|
+|      3420|  Fort Yukon Airport|      Fort Yukon|United States| FYU|PFYU|66.57150269|     -145.25|     433|             -9|  A|America/Anchorage|airport|
+|      3421|Sparrevohn LRRS A...|      Sparrevohn|United States| SVW|PASV|61.09740067|-155.5740051|    1585|             -9|  A|America/Anchorage|airport|
+|      3422|Bryant Army Heliport| Fort Richardson|United States| FRN|PAFR|61.26639938|-149.6529999|     378|             -9|  A|America/Anchorage|airport|
+|      3423|Tatalina LRRS Air...|        Tatalina|United States| TLJ|PATL|62.89440155| -155.977005|     964|             -9|  A|America/Anchorage|airport|
+|      3424|Cape Romanzof LRR...|   Cape Romanzof|United States| CZF|PACZ|61.78030014|-166.0390015|     464|             -9|  A|America/Anchorage|airport|
+|      3425|Laurence G Hansco...|         Bedford|United States| BED|KBED|42.47000122|-71.28900146|     133|             -5|  A| America/New_York|airport|
+|      3426|St Paul Island Ai...| St. Paul Island|United States| SNP|PASN|57.16730118|-170.2200012|      63|             -9|  A|America/Anchorage|airport|
+|      3427|Cape Newenham LRR...|   Cape Newenham|United States| EHM|PAEH|58.64640045|-162.0630035|     541|             -9|  A|America/Anchorage|airport|
+|      3428|   St George Airport|    Point Barrow|United States| STG|PAPB|56.57830048|-169.6620026|     125|             -9|  A|America/Anchorage|airport|
+|      3429|     Iliamna Airport|         Iliamna|United States| ILI|PAIL|59.75439835|-154.9109955|     192|             -9|  A|America/Anchorage|airport|
+|      3430|    Platinum Airport|     Port Moller|United States| PTU|PAPM|59.01139832|-161.8200073|      15|             -9|  A|America/Anchorage|airport|
+|      3431|Big Mountain Airport|    Big Mountain|United States| BMX|PABM|59.36119843|-155.2590027|     663|             -9|  A|America/Anchorage|airport|
+|      3432|Oscoda Wurtsmith ...|          Oscoda|United States| OSC|KOSC|  44.451599|  -83.394096|     633|             -5|  A| America/New_York|airport|
++----------+--------------------+----------------+-------------+----+----+-----------+------------+--------+---------------+---+-----------------+-------+
+only showing top 20 rows
+
+
+scala> val flightSchema = StructType(Array(
+     |       StructField("ID", IntegerType, true),
+     |       StructField("YEAR", IntegerType, true),
+     |       StructField("DAY_OF_MONTH", IntegerType, true),
+     |       StructField("FL_DATE", DateType, true),
+     |       StructField("AIRLINE_ID", IntegerType, true),
+     |       StructField("CARRIER", StringType, true),
+     |       StructField("FL_NUM", IntegerType, true),
+     |       StructField("ORIGIN_AIRPORT_ID", IntegerType, true),
+     |       StructField("ORIGIN", StringType, true),
+     |       StructField("ORIGIN_CITY_NAME", StringType, true),
+     |       StructField("ORIGIN_STATE_ABR", StringType, true),
+     |       StructField("DEST", StringType, true),
+     |       StructField("DEST_CITY_NAME", StringType, true),
+     |       StructField("DEST_STATE_ABR", StringType, true),
+     |       StructField("DEP_TIME", StringType, true),
+     |       StructField("ARR_TIME", StringType, true),
+     |       StructField("ACTUAL_ELAPSED_TIME", IntegerType, true),
+     |       StructField("AIR_TIME", IntegerType, true),
+     |       StructField("DISTANCE", IntegerType, true)))
+flightSchema: org.apache.spark.sql.types.StructType = StructType(StructField(ID,IntegerType,true), StructField(YEAR,IntegerType,true), StructField(DAY_OF_MONTH,IntegerType,true), StructField(FL_DATE,DateType,true), StructField(AIRLINE_ID,IntegerType,true), StructField(CARRIER,StringType,true), StructField(FL_NUM,IntegerType,true), StructField(ORIGIN_AIRPORT_ID,IntegerType,true), StructField(ORIGIN,StringType,true), StructField(ORIGIN_CITY_NAME,StringType,true), StructField(ORIGIN_STATE_ABR,StringType,true), StructField(DEST,StringType,true), StructField(DEST_CITY_NAME,StringType,true), StructField(DEST_STATE_ABR,StringType,true), StructField(DEP_TIME,StringType,true), StructField(ARR_TIME,StringType,true), StructField(ACTUAL_ELAPSED_TIME,IntegerType,true), StructField(AIR_TIME,IntegerTy...
+scala>
+
+scala> val flightsBaseDF = sqlContext.read.option("delimiter",",").option("header", "false").option("dateFormat", "yyyy/MM/dd").option("inferSchema", "false").schema(flightSchema).csv("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")
+flightsBaseDF: org.apache.spark.sql.DataFrame = [ID: int, YEAR: int ... 17 more fields]
+
+scala> flightsBaseDF.count()
+res2: Long = 1048576
+
+scala> flightsBaseDF.show()
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+
+| ID|YEAR|DAY_OF_MONTH|   FL_DATE|AIRLINE_ID|CARRIER|FL_NUM|ORIGIN_AIRPORT_ID|ORIGIN|ORIGIN_CITY_NAME|ORIGIN_STATE_ABR|DEST|DEST_CITY_NAME|DEST_STATE_ABR|DEP_TIME|ARR_TIME|ACTUAL_ELAPSED_TIME|AIR_TIME|DISTANCE|
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+
+|  3|2012|           1|2012-11-11|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1142|                347|     330|    2475|
+|  4|2012|           2|2012-01-02|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     921|    1210|                349|     325|    2475|
+|  5|2012|           3|2012-01-03|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     931|    1224|                353|     319|    2475|
+|  6|2012|           4|2012-01-04|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     904|    1151|                347|     309|    2475|
+|  7|2012|           5|2012-01-05|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1142|                344|     306|    2475|
+|  8|2012|           6|2012-01-06|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     911|    1151|                340|     321|    2475|
+|  9|2012|           7|2012-01-07|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1203|                361|     337|    2475|
+| 10|2012|           8|2012-01-08|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1129|                334|     318|    2475|
+| 11|2012|           9|2012-01-09|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1127|                329|     307|    2475|
+| 12|2012|          10|2012-01-10|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     852|    1134|                342|     325|    2475|
+| 13|2012|          11|2012-01-11|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     853|    1152|                359|     322|    2475|
+| 14|2012|          12|2012-01-12|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1208|                366|     322|    2475|
+| 15|2012|          13|2012-01-13|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     853|    1133|                340|     313|    2475|
+| 16|2012|          14|2012-01-14|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1149|                347|     324|    2475|
+| 17|2012|          15|2012-01-15|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1218|                376|     339|    2475|
+| 18|2012|          16|2012-01-16|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     854|    1208|                374|     350|    2475|
+| 19|2012|          17|2012-01-17|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     854|    1226|                392|     350|    2475|
+| 20|2012|          18|2012-01-18|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     900|    1154|                354|     328|    2475|
+| 21|2012|          19|2012-01-19|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1157|                362|     333|    2475|
+| 22|2012|          20|2012-01-20|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1227|                389|     353|    2475|
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+
+only showing top 20 rows
+
+
+scala> flightsBaseDF.printSchema()
+root
+ |-- ID: integer (nullable = true)
+ |-- YEAR: integer (nullable = true)
+ |-- DAY_OF_MONTH: integer (nullable = true)
+ |-- FL_DATE: date (nullable = true)
+ |-- AIRLINE_ID: integer (nullable = true)
+ |-- CARRIER: string (nullable = true)
+ |-- FL_NUM: integer (nullable = true)
+ |-- ORIGIN_AIRPORT_ID: integer (nullable = true)
+ |-- ORIGIN: string (nullable = true)
+ |-- ORIGIN_CITY_NAME: string (nullable = true)
+ |-- ORIGIN_STATE_ABR: string (nullable = true)
+ |-- DEST: string (nullable = true)
+ |-- DEST_CITY_NAME: string (nullable = true)
+ |-- DEST_STATE_ABR: string (nullable = true)
+ |-- DEP_TIME: string (nullable = true)
+ |-- ARR_TIME: string (nullable = true)
+ |-- ACTUAL_ELAPSED_TIME: integer (nullable = true)
+ |-- AIR_TIME: integer (nullable = true)
+ |-- DISTANCE: integer (nullable = true)
+
+
+scala> val timeStampSrcFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
+timeStampSrcFormat: java.text.SimpleDateFormat = java.text.SimpleDateFormat@715c04c0
+
+scala> val timeStampUTCFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
+timeStampUTCFormat: java.text.SimpleDateFormat = java.text.SimpleDateFormat@715c04c0
+
+scala> timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
+
+scala> def timestampUtcFunc(dateStr:String, timeStr:String, timezoneCode:String) : Long = { if(dateStr == null || timeStr == null || timezoneCode == null) return 0; timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode)); timeStampUTCFormat.parse( timeStampUTCFormat.format( timeStampSrcFormat.parse(dateStr.concat(" ").concat(timeStr)) )).getTime() }
+timestampUtcFunc: (dateStr: String, timeStr: String, timezoneCode: String)Long
+
+scala> val timestampUtcUDF = udf[Long,String,String,String](timestampUtcFunc)
+timestampUtcUDF: org.apache.spark.sql.expressions.UserDefinedFunction = UserDefinedFunction(<function3>,LongType,Some(List(StringType, StringType, StringType)))
+
+scala> val flightsTzTmpDF = flightsBaseDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.ORIGIN" === $"t2.IATA", "left_outer").select($"t1.*", $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE", timestampUtcUDF($"t1.FL_DATE", lpad($"t1.DEP_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "DEP_TIME_UTC_MS")
+flightsTzTmpDF: org.apache.spark.sql.DataFrame = [ID: int, YEAR: int ... 19 more fields]
+
+scala> val flightsTzMappedDF = flightsTzTmpDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.DEST" === $"t2.IATA", "left_outer").select($"t1.*", $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", timestampUtcUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS_TMP")
+flightsTzMappedDF: org.apache.spark.sql.DataFrame = [ID: int, YEAR: int ... 21 more fields]
+
+scala> flightsTzMappedDF.count()
+res7: Long = 1048576
+
+scala> flightsTzMappedDF.show()
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+--------------------+---------------+-------------------+-------------------+
+| ID|YEAR|DAY_OF_MONTH|   FL_DATE|AIRLINE_ID|CARRIER|FL_NUM|ORIGIN_AIRPORT_ID|ORIGIN|ORIGIN_CITY_NAME|ORIGIN_STATE_ABR|DEST|DEST_CITY_NAME|DEST_STATE_ABR|DEP_TIME|ARR_TIME|ACTUAL_ELAPSED_TIME|AIR_TIME|DISTANCE|ORIGIN_TIMEZONE_CODE|DEP_TIME_UTC_MS| DEST_TIMEZONE_CODE|ARR_TIME_UTC_MS_TMP|
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+--------------------+---------------+-------------------+-------------------+
+|  3|2012|           1|2012-11-11|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1142|                347|     330|    2475|    America/New_York|  1352642100000|America/Los_Angeles|      1352662920000|
+|  4|2012|           2|2012-01-02|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     921|    1210|                349|     325|    2475|    America/New_York|  1325514060000|America/Los_Angeles|      1325535000000|
+|  5|2012|           3|2012-01-03|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     931|    1224|                353|     319|    2475|    America/New_York|  1325601060000|America/Los_Angeles|      1325622240000|
+|  6|2012|           4|2012-01-04|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     904|    1151|                347|     309|    2475|    America/New_York|  1325685840000|America/Los_Angeles|      1325706660000|
+|  7|2012|           5|2012-01-05|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1142|                344|     306|    2475|    America/New_York|  1325771880000|America/Los_Angeles|      1325792520000|
+|  8|2012|           6|2012-01-06|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     911|    1151|                340|     321|    2475|    America/New_York|  1325859060000|America/Los_Angeles|      1325879460000|
+|  9|2012|           7|2012-01-07|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1203|                361|     337|    2475|    America/New_York|  1325944920000|America/Los_Angeles|      1325966580000|
+| 10|2012|           8|2012-01-08|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1129|                334|     318|    2475|    America/New_York|  1326030900000|America/Los_Angeles|      1326050940000|
+| 11|2012|           9|2012-01-09|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1127|                329|     307|    2475|    America/New_York|  1326117480000|America/Los_Angeles|      1326137220000|
+| 12|2012|          10|2012-01-10|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     852|    1134|                342|     325|    2475|    America/New_York|  1326203520000|America/Los_Angeles|      1326224040000|
+| 13|2012|          11|2012-01-11|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     853|    1152|                359|     322|    2475|    America/New_York|  1326289980000|America/Los_Angeles|      1326311520000|
+| 14|2012|          12|2012-01-12|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1208|                366|     322|    2475|    America/New_York|  1326376920000|America/Los_Angeles|      1326398880000|
+| 15|2012|          13|2012-01-13|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     853|    1133|                340|     313|    2475|    America/New_York|  1326462780000|America/Los_Angeles|      1326483180000|
+| 16|2012|          14|2012-01-14|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1149|                347|     324|    2475|    America/New_York|  1326549720000|America/Los_Angeles|      1326570540000|
+| 17|2012|          15|2012-01-15|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1218|                376|     339|    2475|    America/New_York|  1326636120000|America/Los_Angeles|      1326658680000|
+| 18|2012|          16|2012-01-16|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     854|    1208|                374|     350|    2475|    America/New_York|  1326722040000|America/Los_Angeles|      1326744480000|
+| 19|2012|          17|2012-01-17|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     854|    1226|                392|     350|    2475|    America/New_York|  1326808440000|America/Los_Angeles|      1326831960000|
+| 20|2012|          18|2012-01-18|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     900|    1154|                354|     328|    2475|    America/New_York|  1326895200000|America/Los_Angeles|      1326916440000|
+| 21|2012|          19|2012-01-19|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1157|                362|     333|    2475|    America/New_York|  1326981300000|America/Los_Angeles|      1327003020000|
+| 22|2012|          20|2012-01-20|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1227|                389|     353|    2475|    America/New_York|  1327067880000|America/Los_Angeles|      1327091220000|
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+--------------------+---------------+-------------------+-------------------+
+only showing top 20 rows
+
+
+scala> val timestampFixUDF = udf((depTimsMS:Long, arrTimeMS:Long, originTzCode:String, destTzCode:String) => { if(arrTimeMS < depTimsMS && !(originTzCode == "Pacific/Guam" && destTzCode == "Pacific/Honolulu")) arrTimeMS+86400000 else arrTimeMS } )
+timestampFixUDF: org.apache.spark.sql.expressions.UserDefinedFunction = UserDefinedFunction(<function4>,LongType,Some(List(LongType, LongType, StringType, StringType)))
+
+scala> val timestampFixUDF = udf((depTimsMS:Long, arrTimeMS:Long, originTzCode:String, destTzCode:String, deptTime:Integer, arrTime:Integer) => { if(originTzCode == "Pacific/Guam" && destTzCode == "Pacific/Honolulu"){ if(deptTime > 1600 && arrTime < 600)  arrTimeMS else arrTimeMS-86400000} else if(arrTimeMS < depTimsMS) arrTimeMS+86400000 else arrTimeMS } )
+timestampFixUDF: org.apache.spark.sql.expressions.UserDefinedFunction = UserDefinedFunction(<function6>,LongType,Some(List(LongType, LongType, StringType, StringType, IntegerType, IntegerType)))
+
+scala> val flightsArrTimeFixDF = flightsTzMappedDF.withColumn("ARR_TIME_UTC_MS", timestampFixUDF($"DEP_TIME_UTC_MS", $"ARR_TIME_UTC_MS_TMP", $"ORIGIN_TIMEZONE_CODE", $"DEST_TIMEZONE_CODE", $"DEP_TIME", $"ARR_TIME")).drop($"ARR_TIME_UTC_MS_TMP")
+flightsArrTimeFixDF: org.apache.spark.sql.DataFrame = [ID: int, YEAR: int ... 21 more fields]
+
+scala> flightsArrTimeFixDF.count()
+res9: Long = 1048576
+
+scala> flightsArrTimeFixDF.show()
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+--------------------+---------------+-------------------+---------------+
+| ID|YEAR|DAY_OF_MONTH|   FL_DATE|AIRLINE_ID|CARRIER|FL_NUM|ORIGIN_AIRPORT_ID|ORIGIN|ORIGIN_CITY_NAME|ORIGIN_STATE_ABR|DEST|DEST_CITY_NAME|DEST_STATE_ABR|DEP_TIME|ARR_TIME|ACTUAL_ELAPSED_TIME|AIR_TIME|DISTANCE|ORIGIN_TIMEZONE_CODE|DEP_TIME_UTC_MS| DEST_TIMEZONE_CODE|ARR_TIME_UTC_MS|
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+--------------------+---------------+-------------------+---------------+
+|  3|2012|           1|2012-11-11|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1142|                347|     330|    2475|    America/New_York|  1352642100000|America/Los_Angeles|  1352662920000|
+|  4|2012|           2|2012-01-02|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     921|    1210|                349|     325|    2475|    America/New_York|  1325514060000|America/Los_Angeles|  1325535000000|
+|  5|2012|           3|2012-01-03|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     931|    1224|                353|     319|    2475|    America/New_York|  1325601060000|America/Los_Angeles|  1325622240000|
+|  6|2012|           4|2012-01-04|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     904|    1151|                347|     309|    2475|    America/New_York|  1325685840000|America/Los_Angeles|  1325706660000|
+|  7|2012|           5|2012-01-05|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1142|                344|     306|    2475|    America/New_York|  1325771880000|America/Los_Angeles|  1325792520000|
+|  8|2012|           6|2012-01-06|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     911|    1151|                340|     321|    2475|    America/New_York|  1325859060000|America/Los_Angeles|  1325879460000|
+|  9|2012|           7|2012-01-07|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1203|                361|     337|    2475|    America/New_York|  1325944920000|America/Los_Angeles|  1325966580000|
+| 10|2012|           8|2012-01-08|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1129|                334|     318|    2475|    America/New_York|  1326030900000|America/Los_Angeles|  1326050940000|
+| 11|2012|           9|2012-01-09|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1127|                329|     307|    2475|    America/New_York|  1326117480000|America/Los_Angeles|  1326137220000|
+| 12|2012|          10|2012-01-10|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     852|    1134|                342|     325|    2475|    America/New_York|  1326203520000|America/Los_Angeles|  1326224040000|
+| 13|2012|          11|2012-01-11|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     853|    1152|                359|     322|    2475|    America/New_York|  1326289980000|America/Los_Angeles|  1326311520000|
+| 14|2012|          12|2012-01-12|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1208|                366|     322|    2475|    America/New_York|  1326376920000|America/Los_Angeles|  1326398880000|
+| 15|2012|          13|2012-01-13|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     853|    1133|                340|     313|    2475|    America/New_York|  1326462780000|America/Los_Angeles|  1326483180000|
+| 16|2012|          14|2012-01-14|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1149|                347|     324|    2475|    America/New_York|  1326549720000|America/Los_Angeles|  1326570540000|
+| 17|2012|          15|2012-01-15|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     902|    1218|                376|     339|    2475|    America/New_York|  1326636120000|America/Los_Angeles|  1326658680000|
+| 18|2012|          16|2012-01-16|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     854|    1208|                374|     350|    2475|    America/New_York|  1326722040000|America/Los_Angeles|  1326744480000|
+| 19|2012|          17|2012-01-17|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     854|    1226|                392|     350|    2475|    America/New_York|  1326808440000|America/Los_Angeles|  1326831960000|
+| 20|2012|          18|2012-01-18|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     900|    1154|                354|     328|    2475|    America/New_York|  1326895200000|America/Los_Angeles|  1326916440000|
+| 21|2012|          19|2012-01-19|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     855|    1157|                362|     333|    2475|    America/New_York|  1326981300000|America/Los_Angeles|  1327003020000|
+| 22|2012|          20|2012-01-20|     19805|     AA|     1|            12478|   JFK|        New York|              NY| LAX|   Los Angeles|            CA|     858|    1227|                389|     353|    2475|    America/New_York|  1327067880000|America/Los_Angeles|  1327091220000|
++---+----+------------+----------+----------+-------+------+-----------------+------+----------------+----------------+----+--------------+--------------+--------+--------+-------------------+--------+--------+--------------------+---------------+-------------------+---------------+
+only showing top 20 rows
+
+
+scala> flightsArrTimeFixDF.printSchema()
+root
+ |-- ID: integer (nullable = true)
+ |-- YEAR: integer (nullable = true)
+ |-- DAY_OF_MONTH: integer (nullable = true)
+ |-- FL_DATE: date (nullable = true)
+ |-- AIRLINE_ID: integer (nullable = true)
+ |-- CARRIER: string (nullable = true)
+ |-- FL_NUM: integer (nullable = true)
+ |-- ORIGIN_AIRPORT_ID: integer (nullable = true)
+ |-- ORIGIN: string (nullable = true)
+ |-- ORIGIN_CITY_NAME: string (nullable = true)
+ |-- ORIGIN_STATE_ABR: string (nullable = true)
+ |-- DEST: string (nullable = true)
+ |-- DEST_CITY_NAME: string (nullable = true)
+ |-- DEST_STATE_ABR: string (nullable = true)
+ |-- DEP_TIME: string (nullable = true)
+ |-- ARR_TIME: string (nullable = true)
+ |-- ACTUAL_ELAPSED_TIME: integer (nullable = true)
+ |-- AIR_TIME: integer (nullable = true)
+ |-- DISTANCE: integer (nullable = true)
+ |-- ORIGIN_TIMEZONE_CODE: string (nullable = true)
+ |-- DEP_TIME_UTC_MS: long (nullable = false)
+ |-- DEST_TIMEZONE_CODE: string (nullable = true)
+ |-- ARR_TIME_UTC_MS: long (nullable = true)
+
+
+scala>
