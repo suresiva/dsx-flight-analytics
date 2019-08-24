@@ -10,103 +10,137 @@ import org.apache.spark.sql.cassandra._
 import scala.collection.Map
 import java.text.SimpleDateFormat
 import java.util.TimeZone
-
-object FlightsInputLoader {
-
-
-	def main(args:Array[String]){
-	  
-	  
-	//TODO to create the tables if not exist automatically through  C* session init function
-	  
-  val log = Logger.getLogger("FlightsInputLoader")
-  
-	  //  sparkConf
+import scala.util.Properties
+import java.util.Properties
+import java.io.FileInputStream
+import java.util.Map.Entry
+import scala.collection.JavaConverters._
+import java.util.Calendar
+import java.util.Date
+import scala.io.Source
+  	  //  sparkConf
     //.setAppName("Write performance test")
     //.set("spark.cassandra.output.concurrent.writes", "16")
     //.set("spark.cassandra.output.batch.size.bytes", "4096")
     //.set("spark.cassandra.output.batch.grouping.key", "partition")
 	  //spark.conf.set("spark.sql.shuffle.partitions", 6)
     //spark.conf.set("spark.executor.memory", "2g")
-    
-  
-  
-		val sparkSession = SparkSession.builder().appName("FlightsInputLoader")
-		                                          //.master("local[*]")
-		                                          .master("dse://10.128.15.195:9042?connection.local_dc=Analytics;connection.host=;")
-		                                          .getOrCreate()
+	//TODO to create the tables if not exist automatically through  C* session init function 
 
+/**
+ * @author sureshsivva 
+ * 
+ * This object is used to parse the given flights dataset
+ * and to transform it to a clean set with clean data types,
+ * all the fields resolved to the expected format.
+ * Also to persist the final formatted records into Cassandra flights table 
+ */
+object FlightsInputLoader {
+ 
+  val logger = Logger.getLogger("FlightsInputLoader")
+  var arguments:RuntimeArguments = null
+  val timestampFormat:String = "yyyy-MM-dd HHmm"
+  val timeStampSrcFormat = new SimpleDateFormat(timestampFormat)
+  val timeStampUTCFormat = new SimpleDateFormat(timestampFormat)
+  
+  val flightInputSchema = StructType(Array( StructField("ID", IntegerType, true),
+                                            StructField("YEAR", IntegerType, true),
+                                            StructField("DAY_OF_MONTH", IntegerType, true),
+                                            StructField("FL_DATE", DateType, true),
+                                            StructField("AIRLINE_ID", IntegerType, true),
+                                            StructField("CARRIER", StringType, true),
+                                            StructField("FL_NUM", IntegerType, true),
+                                            StructField("ORIGIN_AIRPORT_ID", IntegerType, true),
+                                            StructField("ORIGIN", StringType, true),
+                                            StructField("ORIGIN_CITY_NAME", StringType, true),
+                                            StructField("ORIGIN_STATE_ABR", StringType, true),
+                                            StructField("DEST", StringType, true),
+                                            StructField("DEST_CITY_NAME", StringType, true),
+                                            StructField("DEST_STATE_ABR", StringType, true),
+                                            StructField("DEP_TIME", StringType, true),
+                                            StructField("ARR_TIME", StringType, true),
+                                            StructField("ACTUAL_ELAPSED_TIME", IntegerType, true),
+                                            StructField("AIR_TIME", IntegerType, true),
+                                            StructField("DISTANCE", IntegerType, true)))
+
+	/**
+	 * below method is to prepare runtime environment and to prepare 
+	 * the dataset and to persist to cassandra eventually
+	 */
+  def main(args:Array[String]){
+    
+    logger.info("batch load has started at "+ new Date())
+        
+    /** parsing the runtime arguments from properties file or with defaults*/
+    if(args.length == 0)  arguments = new RuntimeArguments()
+    else arguments =  parseArguments(args(0))
+  
+    
+    /** initializing the spark session with given master url*/
+		val sparkSession = SparkSession.builder().appName("FlightsInputLoader")
+		                                          .master(arguments.masterURL)
+		                                          .getOrCreate()
     import sparkSession.implicits._
-		                                  
-    val airportsBaseDF = sparkSession.read.option("delimiter",",")
+    logger.info("initialized spark session...")   
+    
+    
+    /** loading the airports dataset as dataframe, rejecting rows with IATA as null*/
+    val airportsDF = sparkSession.read.option("delimiter",",")
                                           .option("header", "true")
                                           .option("inferSchema", "true")
-                                          //.csv("src/main/resources/usa_airports_details.csv")
-                                          .csv("flight-exercise/input/files/usa_airports_details.csv")
+                                          .csv(s"${arguments.inputFilePath}/usa_airports_details.csv")
                                           .filter(col("IATA").isNotNull)
                                           
-                                          
-    val flightSchema = StructType(Array(
-                                        StructField("ID", IntegerType, true),
-                                        StructField("YEAR", IntegerType, true),
-                                        StructField("DAY_OF_MONTH", IntegerType, true),
-                                        StructField("FL_DATE", DateType, true),
-                                        StructField("AIRLINE_ID", IntegerType, true),
-                                        StructField("CARRIER", StringType, true),
-                                        StructField("FL_NUM", IntegerType, true),
-                                        StructField("ORIGIN_AIRPORT_ID", IntegerType, true),
-                                        StructField("ORIGIN", StringType, true),
-                                        StructField("ORIGIN_CITY_NAME", StringType, true),
-                                        StructField("ORIGIN_STATE_ABR", StringType, true),
-                                        StructField("DEST", StringType, true),
-                                        StructField("DEST_CITY_NAME", StringType, true),
-                                        StructField("DEST_STATE_ABR", StringType, true),
-                                        StructField("DEP_TIME", StringType, true),
-                                        StructField("ARR_TIME", StringType, true),
-                                        StructField("ACTUAL_ELAPSED_TIME", IntegerType, true),
-                                        StructField("AIR_TIME", IntegerType, true),
-                                        StructField("DISTANCE", IntegerType, true)))
-                                        
-                                        
-    val flightsBaseDF = sparkSession.read.option("delimiter",",").option("header", "false")
-                                                                 .option("dateFormat", "yyyy/MM/dd")
-                                                                 .option("inferSchema", "false")
-                                                                 .schema(flightSchema)
-                                                                 //.csv("src/main/resources/flights_from_pg.csv")
-                                                                 .csv("flight-exercise/input/files/flights_from_pg.csv")
+    logger.info(s"loaded the aiports dataset with ${airportsDF.count()} rows")
     
-    val timeStampSrcFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
-  
-    val timeStampUTCFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
-  
-    timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
     
-    def timestampUtcFunc(dateStr:String, timeStr:String, timezoneCode:String) : Long = { 
-                                                                                          if(dateStr == null || timeStr == null || timezoneCode == null) 
-                                                                                              return 0; 
-                                                                                          timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode)); 
-                                                                                          timeStampUTCFormat.parse( 
-                                                                                                      timeStampUTCFormat.format( 
-                                                                                                            timeStampSrcFormat.parse(
-                                                                                                                dateStr.concat(" ").concat(timeStr)) )).getTime() 
-                                                                                        } 
+    /** loading the given flights dataset with the possible immediate schema as dataframe*/
+    val flightsBaseDF = sparkSession.read.option("delimiter",",")
+                                         .option("header", "false")
+                                         .option("dateFormat", "yyyy/MM/dd")
+                                         .option("inferSchema", "false")
+                                         .schema(flightInputSchema)
+                                         .csv(s"${arguments.inputFilePath}/flights_from_pg.csv")
+                                         
+    logger.info(s"loaded the flights dataset with ${flightsBaseDF.count()} rows")
+    
 
+    /** initializing timestamp parsers, UTC timezone converter UDF*/
+    timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
     val timestampUtcUDF = udf[Long,String,String,String](timestampUtcFunc)
 
+    
+    /** joining the flights data with airports to resolve timezone for origin airports,
+     *  and also to convert the dep_time to UTC format by associating the time origin timezone,
+     *  origin_timezone_code = orgin airport's timezone code
+     *  dep_time_utc_ms = flight departure time in UTC milliseconds*/ 
+    
     val flightsTzTmpDF = flightsBaseDF.alias("t1")
-                                      .join(broadcast(airportsBaseDF.alias("t2")), $"t1.ORIGIN" === $"t2.IATA", "left_outer")
+                                      .join(    broadcast(airportsDF.alias("t2")), 
+                                                $"t1.ORIGIN" === $"t2.IATA", "left_outer")
                                       .select(  $"t1.*", 
                                                 $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE", 
                                                 timestampUtcUDF($"t1.FL_DATE", lpad($"t1.DEP_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "DEP_TIME_UTC_MS")
                                                 
                                                 
+    /** joining the flights data with airports to resolve timezone for dest airports,
+     *  and also to convert the arr_time to UTC format by associating the time dest timezone,
+     *  dest_timezone_code = destination airport's timezone code
+     *  arr_time_utc_ms_tmp = flight departure time in UTC milliseconds, yet to fix the date*/ 
                                                 
     val flightsTzMappedDF = flightsTzTmpDF.alias("t1")
-                                          .join(broadcast(airportsBaseDF.alias("t2")), $"t1.DEST" === $"t2.IATA", "left_outer")
+                                          .join(  broadcast(airportsDF.alias("t2")), 
+                                                  $"t1.DEST" === $"t2.IATA", "left_outer")
                                           .select(  $"t1.*", 
                                                     $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", 
                                                     timestampUtcUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS_TMP")
-                                            
+                                                    
+    logger.info("successfully mapped the origin & dest airports timezone...\n" +
+                "converted the dep_time and arr_time values into UTC milliseconds...\n"+
+                s"total rows mapped at the recent dataframe = ${flightsTzMappedDF.count()}")
+    
+    
+    return
 
     val timestampFixUDF = udf( (depTimsMS:Long, arrTimeMS:Long, originTzCode:String, destTzCode:String, deptTime:Integer, arrTime:Integer) => { 
       
@@ -132,7 +166,7 @@ object FlightsInputLoader {
 
     flightsArrTimeFixDF.show()
     
-    log.debug("XXX"+flightsArrTimeFixDF.count())
+    //logger.debug("XXX"+flightsArrTimeFixDF.count())
     
     flightsArrTimeFixDF.printSchema()
     
@@ -171,7 +205,52 @@ object FlightsInputLoader {
     //val airportsDF = airportsBaseDF
 		                                  
 	}
+  
+  
+  /** method to frame the timestamp string, to parse the local timestamp
+   *  and to return the converted timestamp in UTC timezone
+   */
+  def timestampUtcFunc(dateStr:String, timeStr:String, timezoneCode:String) : Long = { 
+                                                                                          
+      if(dateStr == null || timeStr == null || timezoneCode == null) 
+          return 0;
+      
+      timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode));
+      
+      return timeStampUTCFormat.parse( 
+                                    timeStampUTCFormat.format( 
+                                        timeStampSrcFormat.parse(
+                                            dateStr.concat(" ").concat(timeStr)) ))
+                               .getTime()
+  }   
+  
+  
+    
+  /**
+   * method to parse the application arguments from
+   * given properties file and return as case class 
+   */
+  def parseArguments(filePath:String): RuntimeArguments = {
+      
+      var fileProperties:Properties = new Properties()
+      
+      try{
+        
+         // logger.debug(s"parsing the $filePath to read application properties")
+          
+          fileProperties.load(new FileInputStream(filePath))
+          
+          val argProperties = fileProperties.asScala.toMap
+            
+          val sparkMasterURL:String = argProperties.get("spark_master_url").get
+          
+          val inputFilePath:String = argProperties.get("input_file_path").get
 
-
+          return new RuntimeArguments(sparkMasterURL, inputFilePath)
+          
+      } catch {
+          case e : Throwable => throw new Exception(s"parsing given input properties file $filePath was failed due to $e")
+      }
+  }
 
 }
