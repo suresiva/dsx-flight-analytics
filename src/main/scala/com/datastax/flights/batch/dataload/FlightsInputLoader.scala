@@ -63,10 +63,10 @@ object FlightsInputLoader {
                                             StructField("AIR_TIME", IntegerType, true),
                                             StructField("DISTANCE", IntegerType, true)))
 
-	/**
-	 * below method is to prepare runtime environment and to prepare 
-	 * the dataset and to persist to cassandra eventually
-	 */
+ /**
+  * below method is to prepare runtime environment and to prepare 
+  * the dataset and to persist to cassandra eventually
+  */
   def main(args:Array[String]){
     
     logger.info("batch load has started at "+ new Date())
@@ -74,12 +74,15 @@ object FlightsInputLoader {
     /** parsing the runtime arguments from properties file or with defaults*/
     if(args.length == 0)  arguments = new RuntimeArguments()
     else arguments =  parseArguments(args(0))
-  
+    logger.info(s"arguments resolved for this job run are ${arguments}")
+    
     
     /** initializing the spark session with given master url*/
 		val sparkSession = SparkSession.builder().appName("FlightsInputLoader")
 		                                          .master(arguments.masterURL)
+		                                          .config("spark.cassandra.connection.host", arguments.dseConnectionHost)
 		                                          .getOrCreate()
+		                                          
     import sparkSession.implicits._
     logger.info("initialized spark session...")   
     
@@ -139,38 +142,30 @@ object FlightsInputLoader {
                 "converted the dep_time and arr_time values into UTC milliseconds...\n"+
                 s"total rows mapped at the recent dataframe = ${flightsTzMappedDF.count()}")
     
-    
-    return
 
-    val timestampFixUDF = udf( (depTimsMS:Long, arrTimeMS:Long, originTzCode:String, destTzCode:String, deptTime:Integer, arrTime:Integer) => { 
-      
-                                                                  if(originTzCode == "Pacific/Guam" && destTzCode == "Pacific/Honolulu"){ 
-                                                                      if(deptTime > 1600 && arrTime < 600)  
-                                                                          arrTimeMS 
-                                                                      else 
-                                                                          arrTimeMS-86400000
-                                                                          
-                                                                  }else if(arrTimeMS < depTimsMS) 
-                                                                        arrTimeMS+86400000 
-                                                                   else 
-                                                                        arrTimeMS 
-                                                                } )
+    /**
+     * created an UDF to adjust the arr_time according to the fl_date, actual_elapsed_time and 
+     * difference between the arr_time and dep_time.
+     */
+    val timestampFixUDF = udf[Long, Long, Long, String, String, Integer, Integer](arrTimestampFixUDF)
                                                                 
-    val flightsArrTimeFixDF = flightsTzMappedDF.withColumn("ARR_TIME_UTC_MS", timestampFixUDF(  $"DEP_TIME_UTC_MS", 
-                                                                                                $"ARR_TIME_UTC_MS_TMP", 
-                                                                                                $"ORIGIN_TIMEZONE_CODE", 
-                                                                                                $"DEST_TIMEZONE_CODE", 
-                                                                                                $"DEP_TIME", 
-                                                                                                $"ARR_TIME"))
+    val flightsArrTimeFixDF = flightsTzMappedDF.withColumn("ARR_TIME_UTC_MS", 
+                                                               timestampFixUDF( $"DEP_TIME_UTC_MS", 
+                                                                                $"ARR_TIME_UTC_MS_TMP", 
+                                                                                $"ORIGIN_TIMEZONE_CODE", 
+                                                                                $"DEST_TIMEZONE_CODE", 
+                                                                                $"DEP_TIME", 
+                                                                                $"ARR_TIME"))
                                               .drop($"ARR_TIME_UTC_MS_TMP")
 
-    flightsArrTimeFixDF.show()
-    
-    //logger.debug("XXX"+flightsArrTimeFixDF.count())
-    
+    logger.info(s"corrected the arrival time fields. records in recent dataframe=${flightsArrTimeFixDF.count()}\n" +
+                 "final dataframe schema is as below,")    
+                 
     flightsArrTimeFixDF.printSchema()
+
     
-    val flightToCDF = flightsArrTimeFixDF.select( col("ID") as "id",
+    /** preparing the final dataframe to persist in given cassandra table*/
+    val flightToTableDF = flightsArrTimeFixDF.select( col("ID") as "id",
                                                   col("YEAR") as "year",
                                                   col("DAY_OF_MONTH") as "day_of_month",
                                                   col("FL_DATE") as "fl_date",
@@ -190,21 +185,18 @@ object FlightsInputLoader {
                                                   col("AIR_TIME") as "air_time",
                                                   col("DISTANCE") as "distance")
     
-    flightToCDF.write.format("org.apache.spark.sql.cassandra").options(Map("table" -> "flights1","keyspace" -> "test")).save()
+    /** persisting the dataframe into cassandra using cassandra-spark connector*/
+    logger.debug("persisting the final dataframe prepared into cassandra table...")                         
     
-    
-    //val someDF = Seq( ("1", "bat"),   ("2", "mouse"),   ("3", "horse")).toDF("key", "value")
+    flightToTableDF.write.format("org.apache.spark.sql.cassandra")
+                         .options( Map( "keyspace" -> arguments.keySpaceName, 
+                                        "table"    -> arguments.flightTableName))
+                         .save()
 
-    //someDF.printSchema()
-    
-    
-    //someDF.write.format("org.apache.spark.sql.cassandra").options(Map("table" -> "kv","keyspace" -> "test")).save()
-    
-    
-
-    //val airportsDF = airportsBaseDF
-		                                  
+    logger.info(s"persisted the dataframe into ${arguments.keySpaceName}.${arguments.flightTableName}.")
+    logger.info(s"loaded ${flightToTableDF} rows. completed execution.")
 	}
+  
   
   
   /** method to frame the timestamp string, to parse the local timestamp
@@ -225,7 +217,27 @@ object FlightsInputLoader {
   }   
   
   
+  
+  /**
+   * method to resolve the arr_time to the correct date, since the dataset doesn't have 
+   * actual arrival date, it can be resolved with with available fl_date and arr_time.
+   * Also the Guam to Honolulu flights needed extra handling asthe it has +20hr difference
+   */
+  def arrTimestampFixUDF(depTimsMS:Long, arrTimeMS:Long, originTzCode:String, destTzCode:String, deptTime:Integer, arrTime:Integer):Long = { 
+      
+      if(originTzCode == "Pacific/Guam" && destTzCode == "Pacific/Honolulu"){
+        
+          if(deptTime > 1600 && arrTime < 600) arrTimeMS
+          
+          else arrTimeMS-86400000
+              
+      }else if(arrTimeMS < depTimsMS) arrTimeMS+86400000
+      
+       else arrTimeMS 
+   }
+  
     
+  
   /**
    * method to parse the application arguments from
    * given properties file and return as case class 
@@ -236,7 +248,7 @@ object FlightsInputLoader {
       
       try{
         
-         // logger.debug(s"parsing the $filePath to read application properties")
+          logger.debug(s"parsing the $filePath to read application properties")
           
           fileProperties.load(new FileInputStream(filePath))
           
@@ -245,8 +257,14 @@ object FlightsInputLoader {
           val sparkMasterURL:String = argProperties.get("spark_master_url").get
           
           val inputFilePath:String = argProperties.get("input_file_path").get
+          
+          val dseConnectionHost:String = argProperties.get("dse_connection_host").get
+          
+          val keySpaceName:String = argProperties.get("model_keyspace_name").get
+          
+          val flightTableName:String = argProperties.get("model_flight_table").get
 
-          return new RuntimeArguments(sparkMasterURL, inputFilePath)
+          return new RuntimeArguments(sparkMasterURL, inputFilePath, dseConnectionHost, keySpaceName, flightTableName)
           
       } catch {
           case e : Throwable => throw new Exception(s"parsing given input properties file $filePath was failed due to $e")
