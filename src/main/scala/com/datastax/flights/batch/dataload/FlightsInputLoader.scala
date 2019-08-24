@@ -70,132 +70,140 @@ object FlightsInputLoader {
   def main(args:Array[String]){
     
     logger.info("batch load has started at "+ new Date())
+    
+    try{
         
-    /** parsing the runtime arguments from properties file or with defaults*/
-    if(args.length == 0)  arguments = new RuntimeArguments()
-    else arguments =  parseArguments(args(0))
-    logger.info(s"arguments resolved for this job run are ${arguments}")
+        /** parsing the runtime arguments from properties file or with defaults*/
+        if(args.length == 0)  arguments = new RuntimeArguments()
+        else arguments =  parseArguments(args(0))
+        logger.info(s"arguments resolved for this job run are ${arguments}")
+        
+        
+        /** initializing the spark session with given master url*/
+    		val sparkSession = SparkSession.builder().appName("FlightsInputLoader")
+    		                                          .master(arguments.masterURL)
+    		                                          .config("spark.cassandra.connection.host", arguments.dseConnectionHost)
+    		                                          .getOrCreate()
+    		                                          
+        import sparkSession.implicits._
+        logger.info("initialized spark session...")   
+        
+        
+        /** loading the airports dataset as dataframe, rejecting rows with IATA as null*/
+        val airportsDF = sparkSession.read.option("delimiter",",")
+                                              .option("header", "true")
+                                              .option("inferSchema", "true")
+                                              .csv(s"${arguments.inputFilePath}/usa_airports_details.csv")
+                                              .filter(col("IATA").isNotNull)
+                                              
+        logger.info(s"loaded the aiports dataset with ${airportsDF.count()} rows")
+        
+        
+        /** loading the given flights dataset with the possible immediate schema as dataframe*/
+        val flightsBaseDF = sparkSession.read.option("delimiter",",")
+                                             .option("header", "false")
+                                             .option("dateFormat", "yyyy/MM/dd")
+                                             .option("inferSchema", "false")
+                                             .schema(flightInputSchema)
+                                             .csv(s"${arguments.inputFilePath}/flights_from_pg.csv")
+                                             
+        logger.info(s"loaded the flights dataset with ${flightsBaseDF.count()} rows")
+        
     
+        /** initializing timestamp parsers, UTC timezone converter UDF*/
+        timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
+        val timestampUtcUDF = udf[Long,String,String,String](timestampUtcFunc)
     
-    /** initializing the spark session with given master url*/
-		val sparkSession = SparkSession.builder().appName("FlightsInputLoader")
-		                                          .master(arguments.masterURL)
-		                                          .config("spark.cassandra.connection.host", arguments.dseConnectionHost)
-		                                          .getOrCreate()
-		                                          
-    import sparkSession.implicits._
-    logger.info("initialized spark session...")   
-    
-    
-    /** loading the airports dataset as dataframe, rejecting rows with IATA as null*/
-    val airportsDF = sparkSession.read.option("delimiter",",")
-                                          .option("header", "true")
-                                          .option("inferSchema", "true")
-                                          .csv(s"${arguments.inputFilePath}/usa_airports_details.csv")
-                                          .filter(col("IATA").isNotNull)
-                                          
-    logger.info(s"loaded the aiports dataset with ${airportsDF.count()} rows")
-    
-    
-    /** loading the given flights dataset with the possible immediate schema as dataframe*/
-    val flightsBaseDF = sparkSession.read.option("delimiter",",")
-                                         .option("header", "false")
-                                         .option("dateFormat", "yyyy/MM/dd")
-                                         .option("inferSchema", "false")
-                                         .schema(flightInputSchema)
-                                         .csv(s"${arguments.inputFilePath}/flights_from_pg.csv")
-                                         
-    logger.info(s"loaded the flights dataset with ${flightsBaseDF.count()} rows")
-    
-
-    /** initializing timestamp parsers, UTC timezone converter UDF*/
-    timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
-    val timestampUtcUDF = udf[Long,String,String,String](timestampUtcFunc)
-
-    
-    /** joining the flights data with airports to resolve timezone for origin airports,
-     *  and also to convert the dep_time to UTC format by associating the time origin timezone,
-     *  origin_timezone_code = orgin airport's timezone code
-     *  dep_time_utc_ms = flight departure time in UTC milliseconds*/ 
-    
-    val flightsTzTmpDF = flightsBaseDF.alias("t1")
-                                      .join(    broadcast(airportsDF.alias("t2")), 
-                                                $"t1.ORIGIN" === $"t2.IATA", "left_outer")
-                                      .select(  $"t1.*", 
-                                                $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE", 
-                                                timestampUtcUDF($"t1.FL_DATE", lpad($"t1.DEP_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "DEP_TIME_UTC_MS")
-                                                
-                                                
-    /** joining the flights data with airports to resolve timezone for dest airports,
-     *  and also to convert the arr_time to UTC format by associating the time dest timezone,
-     *  dest_timezone_code = destination airport's timezone code
-     *  arr_time_utc_ms_tmp = flight departure time in UTC milliseconds, yet to fix the date*/ 
-                                                
-    val flightsTzMappedDF = flightsTzTmpDF.alias("t1")
-                                          .join(  broadcast(airportsDF.alias("t2")), 
-                                                  $"t1.DEST" === $"t2.IATA", "left_outer")
+        
+        /** joining the flights data with airports to resolve timezone for origin airports,
+         *  and also to convert the dep_time to UTC format by associating the time origin timezone,
+         *  origin_timezone_code = orgin airport's timezone code
+         *  dep_time_utc_ms = flight departure time in UTC milliseconds*/ 
+        
+        val flightsTzTmpDF = flightsBaseDF.alias("t1")
+                                          .join(    broadcast(airportsDF.alias("t2")), 
+                                                    $"t1.ORIGIN" === $"t2.IATA", "left_outer")
                                           .select(  $"t1.*", 
-                                                    $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", 
-                                                    timestampUtcUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS_TMP")
+                                                    $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE", 
+                                                    timestampUtcUDF($"t1.FL_DATE", lpad($"t1.DEP_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "DEP_TIME_UTC_MS")
                                                     
-    logger.info("successfully mapped the origin & dest airports timezone...\n" +
-                "converted the dep_time and arr_time values into UTC milliseconds...\n"+
-                s"total rows mapped at the recent dataframe = ${flightsTzMappedDF.count()}")
+                                                    
+        /** joining the flights data with airports to resolve timezone for dest airports,
+         *  and also to convert the arr_time to UTC format by associating the time dest timezone,
+         *  dest_timezone_code = destination airport's timezone code
+         *  arr_time_utc_ms_tmp = flight departure time in UTC milliseconds, yet to fix the date*/ 
+                                                    
+        val flightsTzMappedDF = flightsTzTmpDF.alias("t1")
+                                              .join(  broadcast(airportsDF.alias("t2")), 
+                                                      $"t1.DEST" === $"t2.IATA", "left_outer")
+                                              .select(  $"t1.*", 
+                                                        $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", 
+                                                        timestampUtcUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS_TMP")
+                                                        
+        logger.info("successfully mapped the origin & dest airports timezone...\n" +
+                    "converted the dep_time and arr_time values into UTC milliseconds...\n"+
+                    s"total rows mapped at the recent dataframe = ${flightsTzMappedDF.count()}")
+        
     
-
-    /**
-     * created an UDF to adjust the arr_time according to the fl_date, actual_elapsed_time and 
-     * difference between the arr_time and dep_time.
-     */
-    val timestampFixUDF = udf[Long, Long, Long, String, String, Integer, Integer](arrTimestampFixUDF)
-                                                                
-    val flightsArrTimeFixDF = flightsTzMappedDF.withColumn("ARR_TIME_UTC_MS", 
-                                                               timestampFixUDF( $"DEP_TIME_UTC_MS", 
-                                                                                $"ARR_TIME_UTC_MS_TMP", 
-                                                                                $"ORIGIN_TIMEZONE_CODE", 
-                                                                                $"DEST_TIMEZONE_CODE", 
-                                                                                $"DEP_TIME", 
-                                                                                $"ARR_TIME"))
-                                              .drop($"ARR_TIME_UTC_MS_TMP")
-
-    logger.info(s"corrected the arrival time fields. records in recent dataframe=${flightsArrTimeFixDF.count()}\n" +
-                 "final dataframe schema is as below,")    
-                 
-    flightsArrTimeFixDF.printSchema()
-
+        /**
+         * created an UDF to adjust the arr_time according to the fl_date, actual_elapsed_time and 
+         * difference between the arr_time and dep_time.
+         */
+        val timestampFixUDF = udf[Long, Long, Long, String, String, Integer, Integer](arrTimestampFixUDF)
+                                                                    
+        val flightsArrTimeFixDF = flightsTzMappedDF.withColumn("ARR_TIME_UTC_MS", 
+                                                                   timestampFixUDF( $"DEP_TIME_UTC_MS", 
+                                                                                    $"ARR_TIME_UTC_MS_TMP", 
+                                                                                    $"ORIGIN_TIMEZONE_CODE", 
+                                                                                    $"DEST_TIMEZONE_CODE", 
+                                                                                    $"DEP_TIME", 
+                                                                                    $"ARR_TIME"))
+                                                  .drop($"ARR_TIME_UTC_MS_TMP")
     
-    /** preparing the final dataframe to persist in given cassandra table*/
-    val flightToTableDF = flightsArrTimeFixDF.select( col("ID") as "id",
-                                                  col("YEAR") as "year",
-                                                  col("DAY_OF_MONTH") as "day_of_month",
-                                                  col("FL_DATE") as "fl_date",
-                                                  col("AIRLINE_ID") as "airline_id",
-                                                  col("CARRIER") as "carrier",
-                                                  col("FL_NUM") as "fl_num",
-                                                  col("ORIGIN_AIRPORT_ID") as "origin_airport_id",
-                                                  col("ORIGIN") as "origin",
-                                                  col("ORIGIN_CITY_NAME") as "origin_city_name",
-                                                  col("ORIGIN_STATE_ABR") as "origin_state_abr",
-                                                  col("DEST") as "dest",
-                                                  col("DEST_CITY_NAME") as "dest_city_name",
-                                                  col("DEST_STATE_ABR") as "dest_state_abr",
-                                                  col("DEP_TIME_UTC_MS") as "dep_time",
-                                                  col("ARR_TIME_UTC_MS") as "arr_time",
-                                                  col("ACTUAL_ELAPSED_TIME") as "actual_elapsed_time",
-                                                  col("AIR_TIME") as "air_time",
-                                                  col("DISTANCE") as "distance")
+        logger.info(s"corrected the arrival time fields. records in recent dataframe=${flightsArrTimeFixDF.count()}\n" +
+                     "final dataframe schema is as below,")    
+                     
+        flightsArrTimeFixDF.printSchema()
     
-    /** persisting the dataframe into cassandra using cassandra-spark connector*/
-    logger.debug("persisting the final dataframe prepared into cassandra table...")                         
+        
+        /** preparing the final dataframe to persist in given cassandra table*/
+        val flightToTableDF = flightsArrTimeFixDF.select( col("ID") as "id",
+                                                      col("YEAR") as "year",
+                                                      col("DAY_OF_MONTH") as "day_of_month",
+                                                      col("FL_DATE") as "fl_date",
+                                                      col("AIRLINE_ID") as "airline_id",
+                                                      col("CARRIER") as "carrier",
+                                                      col("FL_NUM") as "fl_num",
+                                                      col("ORIGIN_AIRPORT_ID") as "origin_airport_id",
+                                                      col("ORIGIN") as "origin",
+                                                      col("ORIGIN_CITY_NAME") as "origin_city_name",
+                                                      col("ORIGIN_STATE_ABR") as "origin_state_abr",
+                                                      col("DEST") as "dest",
+                                                      col("DEST_CITY_NAME") as "dest_city_name",
+                                                      col("DEST_STATE_ABR") as "dest_state_abr",
+                                                      col("DEP_TIME_UTC_MS") as "dep_time",
+                                                      col("ARR_TIME_UTC_MS") as "arr_time",
+                                                      col("ACTUAL_ELAPSED_TIME") as "actual_elapsed_time",
+                                                      col("AIR_TIME") as "air_time",
+                                                      col("DISTANCE") as "distance")
+        
+        /** persisting the dataframe into cassandra using cassandra-spark connector*/
+        logger.debug("persisting the final dataframe prepared into cassandra table...")                         
+        
+        flightToTableDF.write.format("org.apache.spark.sql.cassandra")
+                             .options( Map( "keyspace" -> arguments.keySpaceName, 
+                                            "table"    -> arguments.flightTableName))
+                             .save()
     
-    flightToTableDF.write.format("org.apache.spark.sql.cassandra")
-                         .options( Map( "keyspace" -> arguments.keySpaceName, 
-                                        "table"    -> arguments.flightTableName))
-                         .save()
-
-    logger.info(s"persisted the dataframe into ${arguments.keySpaceName}.${arguments.flightTableName}.")
-    logger.info(s"loaded ${flightToTableDF} rows. completed execution.")
-	}
+        logger.info(s"persisted the dataframe into ${arguments.keySpaceName}.${arguments.flightTableName}.")
+        logger.info(s"loaded ${flightToTableDF} rows. completed execution.")
+        
+    } catch {
+      case e : Throwable => { logger.error("loading flight data to cassandra has failed due to $e")
+                              e.printStackTrace()
+                            }
+    }
+  }
   
   
   
@@ -203,17 +211,23 @@ object FlightsInputLoader {
    *  and to return the converted timestamp in UTC timezone
    */
   def timestampUtcFunc(dateStr:String, timeStr:String, timezoneCode:String) : Long = { 
+    
+    try{
                                                                                           
-      if(dateStr == null || timeStr == null || timezoneCode == null) 
-          return 0;
-      
-      timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode));
-      
-      return timeStampUTCFormat.parse( 
-                                    timeStampUTCFormat.format( 
-                                        timeStampSrcFormat.parse(
-                                            dateStr.concat(" ").concat(timeStr)) ))
-                               .getTime()
+        if(dateStr == null || timeStr == null || timezoneCode == null) 
+            return 0;
+        
+        timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode));
+        
+        return timeStampUTCFormat.parse( 
+                                      timeStampUTCFormat.format( 
+                                          timeStampSrcFormat.parse(
+                                              dateStr.concat(" ").concat(timeStr)) ))
+                                 .getTime()
+                                 
+      } catch {
+          case e : Throwable => throw new Exception(s"parsing dates and utc conversion has failed due to $e")
+      }
   }   
   
   
@@ -233,7 +247,8 @@ object FlightsInputLoader {
               
       }else if(arrTimeMS < depTimsMS) arrTimeMS+86400000
       
-       else arrTimeMS 
+       else arrTimeMS
+
    }
   
     
