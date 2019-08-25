@@ -4,8 +4,15 @@ import com.datastax.driver.core.Session
 import org.apache.spark.SparkContext
 import com.datastax.spark.connector.cql.CassandraConnector
 
+/**
+ * @author sureshsivva 
+ * 
+ * This class is used to  create the keyspace and all the required
+ * tables if they were not existing. 
+ */
 class CqlDmlExecutor {
 
+  /** method to create keyspace with given name*/
 	def createKeyspace(context : SparkContext) = {
   	  try{
 
@@ -18,7 +25,7 @@ class CqlDmlExecutor {
       }
 	}
 	
-	
+	/** method to create flights table with given name*/
 	def createFlightsTable(context : SparkContext) = {
   	  try{
 
@@ -49,7 +56,7 @@ class CqlDmlExecutor {
       }
 	}
 	
-	
+	/** method to create airport_departures table with given name*/
 	def createAirportDepartureTable(context : SparkContext) = {
   	  try{
 
@@ -75,7 +82,7 @@ class CqlDmlExecutor {
       }
 	}	
 	
-	
+	/** method to create flights_airtime table with given name*/
 	def createFlightsArrtimeTable(context : SparkContext) = {
   	  try{
 

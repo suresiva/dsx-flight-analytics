@@ -1,6 +1,10 @@
 package com.datastax.flights.batch.common
 
-/** case class to represent general variables used by multiple modules in this project*/
+/** 
+ * @author sureshsivva 
+ * 
+ * case class to represent general variables used by multiple modules in this project
+ */
 
 case class RuntimeArguments ( masterURL:String = "local[*]",
                               inputFilePath:String = "analysis/inputs/",

@@ -5,6 +5,12 @@ import org.apache.log4j.Logger
 import java.io.FileInputStream
 import scala.collection.JavaConverters._
 
+/**
+ * @author sureshsivva 
+ * 
+ * This object is used to parse the command line arguments
+ * and to populate the case class for application usage 
+ */
 object ArgumentParser {
   
   val logger = Logger.getLogger("ArgumentParser")

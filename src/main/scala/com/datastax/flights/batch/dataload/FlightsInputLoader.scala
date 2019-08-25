@@ -33,6 +33,7 @@ import com.datastax.flights.batch.common._
  * and to transform it to a clean set with clean data types,
  * all the fields resolved to the expected format.
  * Also to persist the final formatted records into Cassandra flights table 
+ * Mostly used spark Dataframe to prepare the data and to persist it.
  */
 object FlightsInputLoader {
  
@@ -90,6 +91,7 @@ object FlightsInputLoader {
         /** creating the required cassandra keyspace and table as needed*/
         cqlExecutor.createKeyspace(sparkSession.sparkContext)
         cqlExecutor.createFlightsTable(sparkSession.sparkContext)
+        logger.info("created keyspace and flights table if they were not existed.")
         
          
         /** loading the airports dataset as dataframe, rejecting rows with IATA as null*/
@@ -228,8 +230,7 @@ object FlightsInputLoader {
                                       timeStampUTCFormat.format( 
                                           timeStampSrcFormat.parse(
                                               dateStr.concat(" ").concat(timeStr)) ))
-                                 .getTime()
-                                 
+                                 .getTime()                
       } catch {
           case e : Throwable => throw new Exception(s"parsing dates and utc conversion has failed due to $e")
       }
@@ -254,8 +255,4 @@ object FlightsInputLoader {
        else arrTimeMS
 
    }
-  
-  
-
-
 }
