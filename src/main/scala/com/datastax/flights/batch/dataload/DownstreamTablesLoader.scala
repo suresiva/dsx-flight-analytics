@@ -123,7 +123,7 @@ object DownstreamTablesLoader {
     
       val flightsAirtimeRDD:RDD[CassandraRow] = flightsRDD.map(row => 
                                                                   CassandraRow.fromMap(  row.toMap + 
-                                                                                        ("arr_time_bucket" -> 
+                                                                                        ("air_time_bucket" -> 
                                                                                          math.ceil(
                                                                                                    (row.getInt("air_time")/10.0))
                                                                                               .toInt*10)))
@@ -131,7 +131,7 @@ object DownstreamTablesLoader {
       flightsAirtimeRDD.saveToCassandra( arguments.keySpaceName, 
                                          "flights_airtime", 
                                          SomeColumns( "fl_num",
-                                                      "arr_time_bucket",
+                                                      "air_time_bucket",
                                                       "id",
                                                       "carrier",
                                                       "origin",
