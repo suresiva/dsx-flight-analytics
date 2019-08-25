@@ -17,7 +17,10 @@ import java.util.Map.Entry
 import scala.collection.JavaConverters._
 import java.util.Calendar
 import java.util.Date
-import scala.io.Source
+import com.datastax.spark.connector.cql.CassandraConnector
+import com.datastax.spark.connector.cql.CassandraConnectorConf
+import com.datastax.flights.batch.common._
+
   	  //  sparkConf
     //.setAppName("Write performance test")
     //.set("spark.cassandra.output.concurrent.writes", "16")
@@ -40,8 +43,7 @@ object FlightsInputLoader {
   val logger = Logger.getLogger("FlightsInputLoader")
   var arguments:RuntimeArguments = null
   val timestampFormat:String = "yyyy-MM-dd HHmm"
-  val timeStampSrcFormat = new SimpleDateFormat(timestampFormat)
-  val timeStampUTCFormat = new SimpleDateFormat(timestampFormat)
+  val cqlExecutor:CqlDmlExecutor = new CqlDmlExecutor()
   
   val flightInputSchema = StructType(Array( StructField("ID", IntegerType, true),
                                             StructField("YEAR", IntegerType, true),
@@ -70,7 +72,7 @@ object FlightsInputLoader {
   def main(args:Array[String]){
     
     logger.info("batch load has started at "+ new Date())
-    
+
     try{
         
         /** parsing the runtime arguments from properties file or with defaults*/
@@ -86,9 +88,14 @@ object FlightsInputLoader {
     		                                          .getOrCreate()
     		                                          
         import sparkSession.implicits._
-        logger.info("initialized spark session...")   
+        logger.info("initialized spark session...")
         
         
+        /** creating the required cassandra keyspace and table as needed*/
+        cqlExecutor.createKeyspace(sparkSession.sparkContext)
+        cqlExecutor.createFlightsTable(sparkSession.sparkContext)
+        
+         return
         /** loading the airports dataset as dataframe, rejecting rows with IATA as null*/
         val airportsDF = sparkSession.read.option("delimiter",",")
                                               .option("header", "true")
@@ -111,7 +118,6 @@ object FlightsInputLoader {
         
     
         /** initializing timestamp parsers, UTC timezone converter UDF*/
-        timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
         val timestampUtcUDF = udf[Long,String,String,String](timestampUtcFunc)
     
         
@@ -200,12 +206,10 @@ object FlightsInputLoader {
         
     } catch {
       case e : Throwable => { logger.error("loading flight data to cassandra has failed due to $e")
-                              e.printStackTrace()
-                            }
+                              e.printStackTrace()}
     }
   }
-  
-  
+    
   
   /** method to frame the timestamp string, to parse the local timestamp
    *  and to return the converted timestamp in UTC timezone
@@ -213,6 +217,10 @@ object FlightsInputLoader {
   def timestampUtcFunc(dateStr:String, timeStr:String, timezoneCode:String) : Long = { 
     
     try{
+      
+        val timeStampSrcFormat = new SimpleDateFormat(timestampFormat)
+        val timeStampUTCFormat = new SimpleDateFormat(timestampFormat)
+        timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
                                                                                           
         if(dateStr == null || timeStr == null || timezoneCode == null) 
             return 0;
@@ -228,8 +236,7 @@ object FlightsInputLoader {
       } catch {
           case e : Throwable => throw new Exception(s"parsing dates and utc conversion has failed due to $e")
       }
-  }   
-  
+  }     
   
   
   /**
@@ -251,7 +258,6 @@ object FlightsInputLoader {
 
    }
   
-    
   
   /**
    * method to parse the application arguments from
