@@ -59,28 +59,48 @@ class CqlDmlExecutor {
 	/** method to create airport_departures table with given name and to create origin_index*/
 	def createAirportDepartureTable(context : SparkContext) = {
   	  try{
-
+  	    
           CassandraConnector(context).withSessionDo{
                   session => session.execute(s"""create table if not exists dx_exercise.airport_departures (
-                                                              id int,
+                                                          		origin text,
                                                               dep_time timestamp,        
-		                                                          origin text,
-		                                                          airline_id int,
-		                                                          carrier text,
-		                                                          fl_num int,
-		                                                          origin_city_name text,
-		                                                          origin_state_abr text,
-		                                                          dest text,
-		                                                          dest_city_name text,
-		                                                          dest_state_abr text,
-		                                                          distance int,
-		                                                          primary key(id, dep_time)) 
-		                                                          with clustering order by (dep_time asc);""")
+                                                              id int,		
+                                                          		airline_id int,
+                                                          		carrier text,
+                                                          		fl_num int,
+                                                          		origin_city_name text,
+                                                          		origin_state_abr text,
+                                                          		dest text,
+                                                          		dest_city_name text,
+                                                          		dest_state_abr text,
+                                                          		distance int,
+                                                          		primary key(origin, dep_time, id))
+                                                          		with clustering order by (dep_time asc, id asc);""")
           }
           
-	        CassandraConnector(context).withSessionDo{
-                  session => session.execute(s"""create index if not exists origin_index ON dx_exercise.airport_departures (origin);""")
-          }
+  	      /** the below approach causing the full table scan when I only use secondary indexed orgin
+  	       *  and dep_time clustering column, here I am not using the partitioning key, so ignoring this.
+  	       
+            CassandraConnector(context).withSessionDo{
+                    session => session.execute(s"""create table if not exists dx_exercise.airport_departures (
+                                                                id int,
+                                                                dep_time timestamp,        
+  		                                                          origin text,
+  		                                                          airline_id int,
+  		                                                          carrier text,
+  		                                                          fl_num int,
+  		                                                          origin_city_name text,
+  		                                                          origin_state_abr text,
+  		                                                          dest text,
+  		                                                          dest_city_name text,
+  		                                                          dest_state_abr text,
+  		                                                          distance int,
+  		                                                          primary key(id, dep_time)) 
+  		                                                          with clustering order by (dep_time asc);""")
+            }
+  	        CassandraConnector(context).withSessionDo{
+                    session => session.execute(s"""create index if not exists origin_index ON dx_exercise.airport_departures (origin);""")
+          }*/
   	  } catch {
           case e : Throwable => throw new Exception(s"creating airport departure table has failed due to $e")
       }
@@ -100,7 +120,7 @@ class CqlDmlExecutor {
                                                   		        origin_city_name text,
                                                   		        dest text,
                                                   		        dest_city_name text,
-                                                  		        primary key(fl_num, arr_time_bucket, id)) 
+                                                  		        primary key(fl_num, air_time_bucket, id)) 
                                                   		        with clustering order by (air_time_bucket asc, id asc);""")
           }
   	  } catch {
