@@ -7,7 +7,6 @@ import com.datastax.spark.connector.cql.CassandraConnector
 class CqlDmlExecutor {
 
 	def createKeyspace(context : SparkContext) = {
-	  
   	  try{
 
           CassandraConnector(context).withSessionDo{
@@ -21,7 +20,6 @@ class CqlDmlExecutor {
 	
 	
 	def createFlightsTable(context : SparkContext) = {
-	  
   	  try{
 
           CassandraConnector(context).withSessionDo{
@@ -50,4 +48,52 @@ class CqlDmlExecutor {
           case e : Throwable => throw new Exception(s"creating flights table has failed due to $e")
       }
 	}
+	
+	
+	def createAirportDepartureTable(context : SparkContext) = {
+  	  try{
+
+          CassandraConnector(context).withSessionDo{
+                  session => session.execute(s"""create table if not exists dx_exercise.airport_departures (
+                                                              id int,
+                                                              dep_time timestamp,        
+		                                                          origin text,
+		                                                          airline_id int,
+		                                                          carrier text,
+		                                                          fl_num int,
+		                                                          origin_city_name text,
+		                                                          origin_state_abr text,
+		                                                          dest text,
+		                                                          dest_city_name text,
+		                                                          dest_state_abr text,
+		                                                          distance int,
+		                                                          primary key(id, dep_time)) 
+		                                                          with clustering order by (dep_time asc);""")
+          }
+  	  } catch {
+          case e : Throwable => throw new Exception(s"creating airport departure table has failed due to $e")
+      }
+	}	
+	
+	
+	def createFlightsArrtimeTable(context : SparkContext) = {
+  	  try{
+
+          CassandraConnector(context).withSessionDo{
+                  session => session.execute(s"""create table if not exists dx_exercise.flights_airtime (
+                                                              fl_num int,
+                                                              arr_time_bucket int,
+                                                  		        id int,
+                                                  		        carrier text,		
+                                                  		        origin text,
+                                                  		        origin_city_name text,
+                                                  		        dest text,
+                                                  		        dest_city_name text,
+                                                  		        primary key(fl_num, arr_time_bucket, id)) 
+                                                  		        with clustering order by (arr_time_bucket asc, id asc);""")
+          }
+  	  } catch {
+          case e : Throwable => throw new Exception(s"creating flights arrtime table has failed due to $e")
+      }
+	}		
 }

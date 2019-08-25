@@ -1,7 +1,9 @@
 package com.datastax.flights.batch.common
 
+/** case class to represent general variables used by multiple modules in this project*/
+
 case class RuntimeArguments ( masterURL:String = "local[*]",
                               inputFilePath:String = "analysis/inputs/",
                               dseConnectionHost:String = "localhost",
-                              keySpaceName:String = "test1",
-                              flightTableName:String = "flights1")
+                              keySpaceName:String = "dx_exercise",
+                              flightTableName:String = "flights")

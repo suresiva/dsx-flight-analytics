@@ -10,11 +10,7 @@ import org.apache.spark.sql.cassandra._
 import scala.collection.Map
 import java.text.SimpleDateFormat
 import java.util.TimeZone
-import scala.util.Properties
-import java.util.Properties
-import java.io.FileInputStream
 import java.util.Map.Entry
-import scala.collection.JavaConverters._
 import java.util.Calendar
 import java.util.Date
 import com.datastax.spark.connector.cql.CassandraConnector
@@ -77,7 +73,7 @@ object FlightsInputLoader {
         
         /** parsing the runtime arguments from properties file or with defaults*/
         if(args.length == 0)  arguments = new RuntimeArguments()
-        else arguments =  parseArguments(args(0))
+        else arguments =  ArgumentParser.parseArguments(args(0))
         logger.info(s"arguments resolved for this job run are ${arguments}")
         
         
@@ -95,7 +91,7 @@ object FlightsInputLoader {
         cqlExecutor.createKeyspace(sparkSession.sparkContext)
         cqlExecutor.createFlightsTable(sparkSession.sparkContext)
         
-         return
+         
         /** loading the airports dataset as dataframe, rejecting rows with IATA as null*/
         val airportsDF = sparkSession.read.option("delimiter",",")
                                               .option("header", "true")
@@ -113,6 +109,7 @@ object FlightsInputLoader {
                                              .option("inferSchema", "false")
                                              .schema(flightInputSchema)
                                              .csv(s"${arguments.inputFilePath}/flights_from_pg.csv")
+                                             .filter(col("ID") <= 100)
                                              
         logger.info(s"loaded the flights dataset with ${flightsBaseDF.count()} rows")
         
@@ -259,37 +256,6 @@ object FlightsInputLoader {
    }
   
   
-  /**
-   * method to parse the application arguments from
-   * given properties file and return as case class 
-   */
-  def parseArguments(filePath:String): RuntimeArguments = {
-      
-      var fileProperties:Properties = new Properties()
-      
-      try{
-        
-          logger.debug(s"parsing the $filePath to read application properties")
-          
-          fileProperties.load(new FileInputStream(filePath))
-          
-          val argProperties = fileProperties.asScala.toMap
-            
-          val sparkMasterURL:String = argProperties.get("spark_master_url").get
-          
-          val inputFilePath:String = argProperties.get("input_file_path").get
-          
-          val dseConnectionHost:String = argProperties.get("dse_connection_host").get
-          
-          val keySpaceName:String = argProperties.get("model_keyspace_name").get
-          
-          val flightTableName:String = argProperties.get("model_flight_table").get
 
-          return new RuntimeArguments(sparkMasterURL, inputFilePath, dseConnectionHost, keySpaceName, flightTableName)
-          
-      } catch {
-          case e : Throwable => throw new Exception(s"parsing given input properties file $filePath was failed due to $e")
-      }
-  }
 
 }
