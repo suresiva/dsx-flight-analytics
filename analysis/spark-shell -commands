@@ -1,0 +1,389 @@
+import org.apache.spark.sql._
+import org.apache.spark.sql.types._
+import org.apache.commons.lang.StringUtils
+import java.util.TimeZone
+ 
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val flightSchema = StructType(Array(
+      StructField("ID", IntegerType, true),
+      StructField("YEAR", IntegerType, true),
+      StructField("DAY_OF_MONTH", IntegerType, true),
+      StructField("FL_DATE", DateType, true),
+      StructField("AIRLINE_ID", IntegerType, true),
+      StructField("CARRIER", StringType, true),
+      StructField("FL_NUM", IntegerType, true),
+      StructField("ORIGIN_AIRPORT_ID", IntegerType, true),
+      StructField("ORIGIN", StringType, true),
+      StructField("ORIGIN_CITY_NAME", StringType, true),
+      StructField("ORIGIN_STATE_ABR", StringType, true),
+      StructField("DEST", StringType, true),
+      StructField("DEST_CITY_NAME", StringType, true),
+      StructField("DEST_STATE_ABR", StringType, true),
+      StructField("DEP_TIME", StringType, true),
+      StructField("ARR_TIME", StringType, true),
+      StructField("ACTUAL_ELAPSED_TIME", IntegerType, true),
+      StructField("AIR_TIME", IntegerType, true),
+      StructField("DISTANCE", IntegerType, true)))
+	  
+
+
+val airportsBaseDF = sqlContext.read.option("delimiter",",")
+					.option("header", "true")
+					.option("inferSchema", "true")
+					.csv("file:////C:/Users/tpc949/next/datastax/data/usa_airports_details.csv")
+					
+val airportsBaseDF = sqlContext.read.option("delimiter",",").option("header", "true").option("inferSchema", "true").csv("file:////C:/Users/tpc949/next/datastax/data/usa_airports_details.csv")					
+
+val timezonePadUDF = udf((timeZoneOffset:String) => {  if(timeZoneOffset == null) null else "-" + StringUtils.rightPad(StringUtils.leftPad(timeZoneOffset.slice(1, timeZoneOffset.length()), 2, "0"), 4, "0") } )
+
+val airportsTimezonePadDF = airportsDF.withColumn("TIMEZONE_OFFSET_4DIGITS", timezonePadUDF($"TIMEZONE_OFFSET".cast(StringType))).filter(col("IATA").isNotNull)
+
+val flightsBaseDF = sqlContext.read.format("csv")
+					.option("delimiter",",")
+					.option("header", "false")
+					.option("inferSchema", "true")
+					.load("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")
+					
+val flightsBaseDF = sqlContext.read.format("csv").option("delimiter",",").option("header", "false").option("inferSchema", "true").load("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")					
+	
+val flightsBaseDF = sqlContext.read.option("delimiter",",")
+					.option("header", "false")
+					.option("dateFormat", "yyyy-MM-dd")
+					.option("inferSchema", "false")
+					.schema(flightSchema)
+					.csv("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")
+	
+val flightsBaseDF = sqlContext.read.option("delimiter",",").option("header", "false").option("dateFormat", "yyyy/MM/dd").option("inferSchema", "false").schema(flightSchema).csv("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")
+
+val flightsOriginTimezoneDF = flightsBaseDF.alias("t1").join(broadcast(airportsTimezonePadDF.alias("t2")), $"t1.ORIGIN" === $"t2.IATA").select($"t1.*", $"t2.TIMEZONE_OFFSET_4DIGITS" as "ORIGIN_TIMEZONE_OFFSET", $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE")
+
+val flightsAirportDF2 = flightsAirportDF1.alias("t1").join(broadcast(airportsDF.alias("t2")), $"DEST" === $"IATA").select($"t1.*", $"t2.Timezone_Offset" as "DEST_TIMEZONE_OFFSET", $"t2.TIMEZONE_OFFSET_4DIGITS" as "DEST_TIMEZONE_CODE")
+
+val flightsTimePadDF = flightsBaseDF.withColumn("DEP_TIMESTAMP", concat($"FL_DATE", lpad($"DEP_TIME",4,"0")))
+
+val timeStampFormat = new SimpleDateFormat("yyyy-mm-dd HHmm")
+
+val timeStampUTCFormat = new SimpleDateFormat("yyyy-mm-dd HHmm ZZZ")
+timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("GMT"))
+
+val timestampOpr = udf((dateStr:String, timeStr:String, timezoneOffset:String) => {  new Timestamp( timeStampFormat.parse(dateStr.concat(" ").concat(timeStr).concat(" ").concat(timezoneOffset)).getTime())})
+
+val timestampUTCOpr = udf((dateStr:String, timeStr:String, timezoneOffset:String) => {  timeStampUTCFormat.format( timeStampUTCFormat.parse(dateStr.concat(" ").concat(timeStr).concat(" ").concat(timezoneOffset)))})
+
+val timestampCoder = udf((dateStr:String, timeStr:String, timezoneOffset:Integer) => {val timestampStr = dateStr.concat(" ").concat(timeStr)})
+
+val flightsTimePadDF = flightsBaseDF.withColumn("DEP_TIMESTAMP", timestampCoder($"FL_DATE", lpad($"DEP_TIME",4,"0")))
+
+val flightsDepTimeDF = flightsOriginTimezoneDF.withColumn("DEP_TIMESTAMP", timestampOpr($"FL_DATE", lpad($"DEP_TIME",4,"0"), $"ORIGIN_TIMEZONE_OFFSET"))
+
+val flightsDepTimeUTCDF = flightsDepTimeDF.withColumn("DEP_TIMESTAMP_UTC", timestampUTCOpr($"FL_DATE", lpad($"DEP_TIME",4,"0"), $"ORIGIN_TIMEZONE_OFFSET"))
+
+flightDetails.createOrReplaceTempView('tab1')
+
+-- TODO to skip the rows that have not matching day of the month and date value
+
+val flightDetails1 = flightDetails.withColumn("")
+
+val flightDetails1 = spark.sql("select ID, FL_DATE, DEP_TIME,  from tab1")
+
+
+==============================================================================================================================================================================================
+
+import org.apache.spark.sql._
+import org.apache.spark.sql.types._
+import org.apache.commons.lang.StringUtils
+import java.util.TimeZone
+import java.text.SimpleDateFormat
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val airportsBaseDF = sqlContext.read.option("delimiter",",")
+					.option("header", "true")
+					.option("inferSchema", "true")
+					.csv("file:////C:/Users/tpc949/next/datastax/data/usa_airports_details.csv")
+					
+val airportsBaseDF = sqlContext.read.option("delimiter",",").option("header", "true").option("inferSchema", "true").csv("file:////C:/Users/tpc949/next/datastax/data/usa_airports_details.csv")					
+
+#val timezonePadUDF = udf((timeZoneOffset:String) => {  if(timeZoneOffset == null) null else "-" + StringUtils.rightPad(StringUtils.leftPad(timeZoneOffset.slice(1, timeZoneOffset.length()), 2, "0"), 4, "0") } )
+#val airportsTimezonePadDF = airportsDF.withColumn("TIMEZONE_OFFSET_4DIGITS", timezonePadUDF($"TIMEZONE_OFFSET".cast(StringType))).filter(col("IATA").isNotNull)
+
+val airportsDF = airportsBaseDF.filter(col("IATA").isNotNull)
+
+val flightSchema = StructType(Array(
+      StructField("ID", IntegerType, true),
+      StructField("YEAR", IntegerType, true),
+      StructField("DAY_OF_MONTH", IntegerType, true),
+      StructField("FL_DATE", DateType, true),
+      StructField("AIRLINE_ID", IntegerType, true),
+      StructField("CARRIER", StringType, true),
+      StructField("FL_NUM", IntegerType, true),
+      StructField("ORIGIN_AIRPORT_ID", IntegerType, true),
+      StructField("ORIGIN", StringType, true),
+      StructField("ORIGIN_CITY_NAME", StringType, true),
+      StructField("ORIGIN_STATE_ABR", StringType, true),
+      StructField("DEST", StringType, true),
+      StructField("DEST_CITY_NAME", StringType, true),
+      StructField("DEST_STATE_ABR", StringType, true),
+      StructField("DEP_TIME", StringType, true),
+      StructField("ARR_TIME", StringType, true),
+      StructField("ACTUAL_ELAPSED_TIME", IntegerType, true),
+      StructField("AIR_TIME", IntegerType, true),
+      StructField("DISTANCE", IntegerType, true)))
+
+val flightsBaseDF = sqlContext.read.option("delimiter",",")
+					.option("header", "false")
+					.option("dateFormat", "yyyy-MM-dd")
+					.option("inferSchema", "false")
+					.schema(flightSchema)
+					.csv("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")
+	
+val flightsBaseDF = sqlContext.read.option("delimiter",",").option("header", "false").option("dateFormat", "yyyy/MM/dd").option("inferSchema", "false").schema(flightSchema).csv("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")
+
+val timeStampSrcFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
+val timeStampUTCFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
+timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
+
+val timestampUTCUDF = udf((dateStr:String, timeStr:String, timezoneCode:String) => { timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode)); timeStampUTCFormat.parse( timeStampUTCFormat.format( timeStampSrcFormat.parse(dateStr.concat(" ").concat(timeStr)) )).getTime() })
+
+val flightsOriginTzDF = flightsBaseDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.ORIGIN" === $"t2.IATA").select($"t1.*", $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE", timestampUTCUDF($"t1.FL_DATE", lpad($"t1.DEP_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "DEP_TIME_UTC_MS")
+
+val flightsDestTzDF = flightsOriginTzDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.DEST" === $"t2.IATA").select($"t1.*", $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", timestampUTCUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS")
+
+
+val tmpResult1 = flightsDestTzDF.select($"ID", $"DAY_OF_MONTH", $"FL_DATE", $"ORIGIN", $"ORIGIN_STATE_ABR", $"DEST",$"DEST_STATE_ABR", $"DEP_TIME", $"ORIGIN_TIMEZONE_CODE", $"DEP_TIME_UTC_MS", $"ARR_TIME", $"DEST_TIMEZONE_CODE", $"ARR_TIME_UTC_MS", $"ACTUAL_ELAPSED_TIME", ($"ARR_TIME_UTC_MS" - $"DEP_TIME_UTC_MS")/(60000) as "DIFF_MINS" , ($"ARR_TIME_UTC_MS" - $"DEP_TIME_UTC_MS") as "DIFF" )
+
+val tmpResult2 = tmpResult1.filter($"DIFF" < 0 && $"ACTUAL_ELAPSED_TIME" =!= 111).sort($"DIFF".desc)
+
+val tmpResult3 = tmpResult1.filter( $"ACTUAL_ELAPSED_TIME" === 111)
+
+val tmpResult4 = tmpResult1.filter( $"ACTUAL_ELAPSED_TIME" =!= $"DIFF_MINS" && $"ACTUAL_ELAPSED_TIME" =!= 111).sort($"DIFF_MINS".desc)
+
+val tmpResult5 = tmpResult1.filter($"DIFF" <= 0).sort($"DIFF".desc)
+
+tmpResult5.coalesce(1).write.format("com.databricks.spark.csv").save("df1.csv", header = 'true')
+
+
+==============================================================================================================================================================================================
+
+def timestampUTCFunc(dateStr:String, timeStr:String, timezoneCode:String) : Long = { if(dateStr == null || timeStr == null || timezoneCode == null) return 0; timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode)); timeStampUTCFormat.parse( timeStampUTCFormat.format( timeStampSrcFormat.parse(dateStr.concat(" ").concat(timeStr)) )).getTime() } 
+
+val timestampUTCUDF = udf[Long,String,String,String](timestampUTCFunc)
+
+val timestampUTCUDF = udf((dateStr:String, timeStr:String, timezoneCode:String) => { if(dateStr == null || timeStr == null || timezoneCode == null) null else timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode)); timeStampUTCFormat.parse( timeStampUTCFormat.format( timeStampSrcFormat.parse(dateStr.concat(" ").concat(timeStr)) )).getTime() })
+
+
+val flightsDF = flightsBaseDF.filter($"ACTUAL_ELAPSED_TIME" === $"AIR_TIME" )
+
+flightsDF.coalesce(1).write.format("com.databricks.spark.csv").option("header", "true").save("flightsDF.csv")
+
+
+
+val flightsOriginTzDFTest = flightsBaseDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.ORIGIN" === $"t2.IATA", "left_outer").select($"t1.*", $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE", timestampUTCUDF($"t1.FL_DATE", lpad($"t1.DEP_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "DEP_TIME_UTC_MS")
+
+val flightsDestTzDFTest = flightsOriginTzDFTest.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.DEST" === $"t2.IATA", "left_outer").select($"t1.*", $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", timestampUTCUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS")
+
+val flightsOriginTzDFTest1 = flightsOriginTzDFTest.filter($"ORIGIN_TIMEZONE_CODE".isNull)
+
+val flightsOriginTzDFTest2 = flightsDestTzDFTest.filter($"DEST_TIMEZONE_CODE".isNull)
+
+flightsOriginTzDFTest1.coalesce(1).write.format("com.databricks.spark.csv").option("header","true").save("df2.csv")
+
+val tmpResult1 = flightsTzMappedDF.select($"ID", $"DAY_OF_MONTH", $"FL_DATE", $"ORIGIN", $"ORIGIN_STATE_ABR", $"DEST",$"DEST_STATE_ABR", $"DEP_TIME", $"ORIGIN_TIMEZONE_CODE", $"DEP_TIME_UTC_MS", $"ARR_TIME", $"DEST_TIMEZONE_CODE", $"ARR_TIME_UTC_MS", $"ACTUAL_ELAPSED_TIME", $"AIR_TIME", ($"ARR_TIME_UTC_MS" - $"DEP_TIME_UTC_MS")/(60000) as "DIFF_MINS" , ($"ARR_TIME_UTC_MS" - $"DEP_TIME_UTC_MS") as "DIFF" )
+
+==============================================================================================================================================================================================
+
+import org.apache.spark.sql._
+import org.apache.spark.sql.types._
+import org.apache.commons.lang.StringUtils
+import java.util.TimeZone
+import java.text.SimpleDateFormat
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val airportsBaseDF = sqlContext.read.option("delimiter",",").option("header", "true").option("inferSchema", "true").csv("file:////C:/Users/tpc949/next/datastax/data/usa_airports_details.csv")	
+val airportsDF = airportsBaseDF.filter(col("IATA").isNotNull)
+
+val flightSchema = StructType(Array(
+      StructField("ID", IntegerType, true),
+      StructField("YEAR", IntegerType, true),
+      StructField("DAY_OF_MONTH", IntegerType, true),
+      StructField("FL_DATE", DateType, true),
+      StructField("AIRLINE_ID", IntegerType, true),
+      StructField("CARRIER", StringType, true),
+      StructField("FL_NUM", IntegerType, true),
+      StructField("ORIGIN_AIRPORT_ID", IntegerType, true),
+      StructField("ORIGIN", StringType, true),
+      StructField("ORIGIN_CITY_NAME", StringType, true),
+      StructField("ORIGIN_STATE_ABR", StringType, true),
+      StructField("DEST", StringType, true),
+      StructField("DEST_CITY_NAME", StringType, true),
+      StructField("DEST_STATE_ABR", StringType, true),
+      StructField("DEP_TIME", StringType, true),
+      StructField("ARR_TIME", StringType, true),
+      StructField("ACTUAL_ELAPSED_TIME", IntegerType, true),
+      StructField("AIR_TIME", IntegerType, true),
+      StructField("DISTANCE", IntegerType, true)))
+	  
+val flightsBaseDF = sqlContext.read.option("delimiter",",").option("header", "false").option("dateFormat", "yyyy/MM/dd").option("inferSchema", "false").schema(flightSchema).csv("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")
+
+val timeStampSrcFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
+val timeStampUTCFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
+timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
+
+def timestampUtcFunc(dateStr:String, timeStr:String, timezoneCode:String) : Long = { if(dateStr == null || timeStr == null || timezoneCode == null) return 0; timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode)); timeStampUTCFormat.parse( timeStampUTCFormat.format( timeStampSrcFormat.parse(dateStr.concat(" ").concat(timeStr)) )).getTime() } 
+
+val timestampUtcUDF = udf[Long,String,String,String](timestampUtcFunc)
+
+val flightsTzTmpDF = flightsBaseDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.ORIGIN" === $"t2.IATA", "left_outer").select($"t1.*", $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE", timestampUtcUDF($"t1.FL_DATE", lpad($"t1.DEP_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "DEP_TIME_UTC_MS")
+
+val flightsTzMappedDF = flightsTzTmpDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.DEST" === $"t2.IATA", "left_outer").select($"t1.*", $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", timestampUtcUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS_TMP")
+
+val incorrectRecordsDF = flightsTzMappedDF.filter($"ACTUAL_ELAPSED_TIME" === $"AIR_TIME")
+
+incorrectRecordsDF.coalesce(1).write.format("com.databricks.spark.csv").option("header","true").save("incorrect.csv")
+
+val incorrectRecordsDF1 = flightsTzMappedDF.filter($"ACTUAL_ELAPSED_TIME" < $"AIR_TIME")
+
+val correctRecordsDF = flightsTzMappedDF.filter($"ACTUAL_ELAPSED_TIME" =!= $"AIR_TIME")
+
+val tmpResult2 = flightsTzMappedDF.filter($"ARR_TIME_UTC_MS" <= $"DEP_TIME_UTC_MS")
+
+tmpResult2.coalesce(1).write.format("com.databricks.spark.csv").option("header","true").save("df3.csv")
+
+
+val timestampFixUDF = udf((depTimsMS:Long, arrTimeMS:Long) => { if(arrTimeMS < depTimsMS) arrTimeMS+86400000 else arrTimeMS } )
+
+val flightsArrTimeFixDF = flightsTzMappedDF.withColumn("ARR_TIME_UTC_MS", timestampFixUDF($"DEP_TIME_UTC_MS", $"ARR_TIME_UTC_MS_TMP"))
+
+val tmpResult2 = flightsArrTimeFixDF.filter($"ARR_TIME_UTC_MS" <= $"DEP_TIME_UTC_MS" && $"ACTUAL_ELAPSED_TIME" =!= $"AIR_TIME")
+
+val tmpResult3 =flightsArrTimeFixDF.filter(($"ARR_TIME_UTC_MS" - $"DEP_TIME_UTC_MS") < 3600000)
+
+tmpResult3.coalesce(1).write.format("com.databricks.spark.csv").option("header","true").save("df4.csv")
+
+
+===================================================================================================================================================================================
+
+import org.apache.spark.sql._
+import org.apache.spark.sql.types._
+import org.apache.commons.lang.StringUtils
+import java.util.TimeZone
+import java.text.SimpleDateFormat
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val airportsBaseDF = sqlContext.read.option("delimiter",",").option("header", "true").option("inferSchema", "true").csv("file:////C:/Users/tpc949/next/datastax/data/usa_airports_details.csv")	
+val airportsDF = airportsBaseDF.filter(col("IATA").isNotNull)
+
+val airportsDF = sqlContext.read.option("delimiter",",").option("header", "true").option("inferSchema", "true").csv("file:////C:/Users/tpc949/next/datastax/data/usa_airports_details.csv").filter(col("IATA").isNotNull)	
+
+
+val flightSchema = StructType(Array(
+      StructField("ID", IntegerType, true),
+      StructField("YEAR", IntegerType, true),
+      StructField("DAY_OF_MONTH", IntegerType, true),
+      StructField("FL_DATE", DateType, true),
+      StructField("AIRLINE_ID", IntegerType, true),
+      StructField("CARRIER", StringType, true),
+      StructField("FL_NUM", IntegerType, true),
+      StructField("ORIGIN_AIRPORT_ID", IntegerType, true),
+      StructField("ORIGIN", StringType, true),
+      StructField("ORIGIN_CITY_NAME", StringType, true),
+      StructField("ORIGIN_STATE_ABR", StringType, true),
+      StructField("DEST", StringType, true),
+      StructField("DEST_CITY_NAME", StringType, true),
+      StructField("DEST_STATE_ABR", StringType, true),
+      StructField("DEP_TIME", StringType, true),
+      StructField("ARR_TIME", StringType, true),
+      StructField("ACTUAL_ELAPSED_TIME", IntegerType, true),
+      StructField("AIR_TIME", IntegerType, true),
+      StructField("DISTANCE", IntegerType, true)))
+	  
+val flightsBaseDF = sqlContext.read.option("delimiter",",").option("header", "false").option("dateFormat", "yyyy/MM/dd").option("inferSchema", "false").schema(flightSchema).csv("file:////C:/Users/tpc949/next/datastax/data/flights/flights_from_pg.csv")
+
+val timeStampSrcFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
+val timeStampUTCFormat = new SimpleDateFormat("yyyy-MM-dd HHmm")
+timeStampUTCFormat.setTimeZone(TimeZone.getTimeZone("UTC"))
+
+def timestampUtcFunc(dateStr:String, timeStr:String, timezoneCode:String) : Long = { if(dateStr == null || timeStr == null || timezoneCode == null) return 0; timeStampSrcFormat.setTimeZone(TimeZone.getTimeZone(timezoneCode)); timeStampUTCFormat.parse( timeStampUTCFormat.format( timeStampSrcFormat.parse(dateStr.concat(" ").concat(timeStr)) )).getTime() } 
+
+val timestampUtcUDF = udf[Long,String,String,String](timestampUtcFunc)
+
+val flightsTzTmpDF = flightsBaseDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.ORIGIN" === $"t2.IATA", "left_outer").select($"t1.*", $"t2.TIMEZONE_CODE" as "ORIGIN_TIMEZONE_CODE", timestampUtcUDF($"t1.FL_DATE", lpad($"t1.DEP_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "DEP_TIME_UTC_MS")
+
+val flightsTzMappedDF = flightsTzTmpDF.alias("t1").join(broadcast(airportsDF.alias("t2")), $"t1.DEST" === $"t2.IATA", "left_outer").select($"t1.*", $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", timestampUtcUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS_TMP")
+
+#val timestampFixUDF = udf((depTimsMS:Long, arrTimeMS:Long, originTzCode:String, destTzCode:String) => { if(arrTimeMS < depTimsMS && !(originTzCode == "Pacific/Guam" && destTzCode == "Pacific/Honolulu")) arrTimeMS+86400000 else arrTimeMS } )
+
+val timestampFixUDF = udf((depTimsMS:Long, arrTimeMS:Long, originTzCode:String, destTzCode:String, deptTime:Integer, arrTime:Integer) => { if(originTzCode == "Pacific/Guam" && destTzCode == "Pacific/Honolulu"){ if(deptTime > 1600 && arrTime < 600)  arrTimeMS else arrTimeMS-86400000} else if(arrTimeMS < depTimsMS) arrTimeMS+86400000 else arrTimeMS } )
+
+
+#val flightsArrTimeFixDF = flightsTzMappedDF.withColumn("ARR_TIME_UTC_MS", timestampFixUDF($"DEP_TIME_UTC_MS", $"ARR_TIME_UTC_MS_TMP", $"ORIGIN_TIMEZONE_CODE", $"DEST_TIMEZONE_CODE"))
+.drop($"ARR_TIME_UTC_MS_TMP")
+
+val flightsArrTimeFixDF = flightsTzMappedDF.withColumn("ARR_TIME_UTC_MS", timestampFixUDF($"DEP_TIME_UTC_MS", $"ARR_TIME_UTC_MS_TMP", $"ORIGIN_TIMEZONE_CODE", $"DEST_TIMEZONE_CODE", $"DEP_TIME", $"ARR_TIME")).drop($"ARR_TIME_UTC_MS_TMP")
+
+val flightDurationDF = flightsArrTimeFixDF.withColumn("TIME_TAKEN", ($"ARR_TIME_UTC_MS"-$"DEP_TIME_UTC_MS")/60000)
+
+val flightDelaysDF = flightDurationDF.withColumn("DELAY", $"ACTUAL_ELAPSED_TIME"-$"TIME_TAKEN")
+
+val delayedFlightsDF = flightDelaysDF.filter($"ACTUAL_ELAPSED_TIME" =!= $"AIR_TIME" && $"DELAY" =!= 0)
+
+delayedFlightsDF.coalesce(1).write.format("com.databricks.spark.csv").option("header","true").save("delays1.csv")
+
+val testResults10 = flightDelaysDF.filter($"ORIGIN_TIMEZONE_CODE" === "Pacific/Guam" && $"DEST_TIMEZONE_CODE" === "Pacific/Honolulu")
+
+val testResults10 = flightDelaysDF.filter($"ORIGIN" === "STT")
+
+testResults10.coalesce(1).write.format("com.databricks.spark.csv").option("header","true").save("stt.csv")
+
+
+
+
+
+===================================================================================================================================================================================
+import org.apache.spark.sql._
+import org.apache.spark.sql.types._
+import org.apache.commons.lang.StringUtils
+import java.util.TimeZone
+import java.text.SimpleDateFormat
+
+val sqlContext = new org.apache.spark.sql.SQLContext(sc)
+
+val df = sqlContext.read
+				   .format("org.apache.spark.sql.cassandra")
+				   .options(Map( "table" -> "flights1", "keyspace" -> "test" ))
+                   .load()
+				   
+#val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load()
+
+#val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().filter($"origin" === "HNL")
+
+#val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().filter($"origin" === "HNL").filter($"dep_time".gt("2012-01-25 00:00:00.000000+0000") && $"dep_time".lt("2012-01-25 23:59:59.000000+0000")).count()
+
+val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().select($"id").filter($"origin" === "HNL" && $"dep_time".gt("2012-01-25 00:00:00.000000+0000") && $"dep_time".lt("2012-01-25 23:59:59.000000+0000")).count()
+
+#val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().select("origin").filter($"origin".startsWith("A")).distinct()
+
+val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().select("origin").filter($"origin".startsWith("A")).distinct().count()
+
+#val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().select($"origin", $"id").filter($"dep_time".gt("2012-01-23 00:00:00.000000+0000") && $"dep_time".lt("2012-01-23 23:59:59.000000+0000")).groupBy($"origin").count()
+
+#val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().select($"origin", $"id").filter($"dep_time".gt("2012-01-23 00:00:00.000000+0000") && $"dep_time".lt("2012-01-23 23:59:59.000000+0000")).groupBy($"origin").count().orderBy($"count".desc).first
+
+val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().select($"origin", $"id").filter($"dep_time".gt("2012-01-23 00:00:00.000000+0000") && $"dep_time".lt("2012-01-23 23:59:59.000000+0000")).groupBy($"origin").agg(count($"id").as("flights_count")).orderBy($"flights_count".desc).first
+
+spark.format("org.apache.spark.sql.cassandra").sql("select origin, count(id) as flights_count from test.flights1 where dep_time between '2012-01-23 00:00:00.000000+0000' and '2012-01-23 23:59:59.000000+0000' group by origin order by flights_count desc limit 1").show()
+
+spark.sql("select origin, count(id) as flights_count from test.flights1 where dep_time between '2012-01-23 00:00:00.000000+0000' and '2012-01-23 23:59:59.000000+0000' group by origin order by flights_count desc limit 1").show()
+
+---------------
+val df = sqlContext.read.format("org.apache.spark.sql.cassandra").options(Map( "table" -> "flights1", "keyspace" -> "test" )).load().select($"id").filter($"origin" === "BOS").withColumn("origin", lit("TST"))
+
+df.write.format("org.apache.spark.sql.cassandra").options( Map( "keyspace" -> "test", "table"    -> "flights1")).mode(org.apache.spark.sql.SaveMode.Append).save()
+
+
+
+
+
