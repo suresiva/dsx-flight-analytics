@@ -31,6 +31,11 @@
         dest: /etc/default/dse
         mode: 0755
 
+- name: copy updated rackdc file to remote nodes
+  template:
+        src: cassandra-rackdc.properties
+        dest: /etc/dse/cassandra/cassandra-rackdc.properties
+
 - name: start dse node
   shell: service dse start
   args:

@@ -1,7 +1,0 @@
-dse_version: 6.7.4
-
-dse_cluster_name: dse_lab_cluster
-
-dse_native_transport_port: 9042
-
-dc1_seed_node_ips: 10.128.15.195

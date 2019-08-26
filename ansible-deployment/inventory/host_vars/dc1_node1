@@ -1,0 +1,6 @@
+---
+spark_enabled: 1
+
+dc_name: dsx_dc1
+
+rack_name: rack1

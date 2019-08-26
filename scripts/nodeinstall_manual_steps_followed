@@ -1,0 +1,92 @@
+------------------------------------------------------------------
+To create a service user
+------------------------------------------------------------------
+sudo adduser dcuser
+
+sudo passwd dcuser
+
+sudo usermod -aG wheel dcuser
+
+sudo vi /etc/sudoers => enable no password for wheel group
+
+------------------------------------------------------------------
+To create passwordless ssh between nodes and ansible controller
+------------------------------------------------------------------
+
+On ansible controller
+----------------------
+ssh-keygen
+
+cat .ssh/id_rsa.pub => copy the contents
+
+on ansible hosts
+----------------------
+vi ~/.ssh/authorized_keys => add the ansible controller's public key
+
+chmod 700 ~/.ssh
+chmod 600 ~/.ssh/authorized_keys
+
+------------------------------------------------------------------
+To install dependencies and dse enterprise on cassandra hosts
+------------------------------------------------------------------
+
+sudo vi /etc/yum.repos.d/datastax.repo => add the below contents
+	[datastax] 
+	name = DataStax Repo for DataStax Enterprise
+	baseurl=https://rpm.datastax.com/enterprise/
+	enabled=1
+	gpgcheck=0
+
+sudo yum install java-1.8.0-openjdk
+sudo yum install libaio
+sudo yum install dse-full-6.7.4-1
+
+Modified below files and printed the properties,
+	/etc/dse/cassandra/cassandra.yaml
+		cluster_name
+		listen_address
+		rpc_address
+		native_transport_address
+		seed_provider
+		endpoint_snitch
+		num_tokens
+	/etc/dse/cassandra/cassandra-rackdc.properties
+		dc
+		rack
+	/etc/default/dse
+		SPARK_ENABLED
+
+------------------------------------------------------------------
+To start & stop the dse service
+------------------------------------------------------------------		
+sudo service dse start
+sudo service dse stop
+nodetool status
+dse dsetool ring
+
+------------------------------------------------------------------
+To remove dse and java installed
+------------------------------------------------------------------	
+sudo yum remove "dse-*" "datastax-*"
+
+sudo rpm -qa|grep dse
+sudo rpm -e dse-libhadoop2-client-6.7.4-1.noarch dse-libtomcat-6.7.4-1.noarch dse-full-6.7.4-1.noarch dse-libcassandra-6.7.4-1.noarch dse-libsolr-6.7.4-1.noarch dse-libspark-6.7.4-1.noarch dse-libgraph-6.7.4-1.noarch dse-6.7.4-1.noarch dse-liblog4j-6.7.4-1.noarch
+
+sudo rpm -qa|grep openjdk
+sudo rpm -e java-1.8.0-openjdk-headless-1.8.0.222.b10-0.el7_6.x86_64 java-1.8.0-openjdk-1.8.0.222.b10-0.el7_6.x86_64
+
+sudo rm -rf /var/lib/cassandra/cassandra
+sudo rm -rf /var/log/cassandra
+sudo rm -rf /var/lib/dsefs
+
+------------------------------------------------------------------
+script deployment structure
+------------------------------------------------------------------	
+
+deployed folder
+ |
+ |---files (dsx-flight-analytics-0.0.1.jar, job.properties.template, log4j.properties, flights&airport files)
+ |---logs
+ |---scripts (process_flight_dataset.sh)
+ |
+ ---- dsefs://<ip>:5598/flight-exercise/input/files (flights_from_pg.csv, usa_airports_details.csv)

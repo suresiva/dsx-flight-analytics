@@ -1,0 +1,10 @@
+---
+- name: install dse and enable services
+  hosts: dc1
+  gather_facts: True
+  remote_user: tpc949
+  become: true
+  become_method: sudo
+  roles:
+     - dependencies
+     - datastax
