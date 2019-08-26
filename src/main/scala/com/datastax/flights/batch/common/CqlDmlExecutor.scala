@@ -126,5 +126,21 @@ class CqlDmlExecutor {
   	  } catch {
           case e : Throwable => throw new Exception(s"creating flights arrtime table has failed due to $e")
       }
+	}	
+	
+	
+	/** method to drop the given airport's rows from flight_airtime table*/
+	def dropFlightAirtimeRows(context : SparkContext, airportCode:String, arguments:RuntimeArguments) = {
+  	  try{
+
+          CassandraConnector(context).withSessionDo{
+                  
+                  session => session.execute(s"""delete from ${arguments.keySpaceName}.airport_departures where origin='${airportCode}';""")
+            println(s"""XXXX: delete from ${arguments.keySpaceName}.airport_departures where origin='${airportCode}';""")
+            //session => session.execute("delete from dx_exercise.airport_departures where origin='TST';")
+          }
+  	  } catch {
+          case e : Throwable => throw new Exception(s"failed to drop the given airport rows from flights_airtime table due to $e")
+      }
 	}		
 }

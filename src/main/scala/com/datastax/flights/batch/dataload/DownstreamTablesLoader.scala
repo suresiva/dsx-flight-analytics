@@ -26,7 +26,11 @@ object DownstreamTablesLoader {
     val logger = Logger.getLogger("DownstreamTablesLoader")
     var arguments:RuntimeArguments = null
     val cqlExecutor:CqlDmlExecutor = new CqlDmlExecutor()
-    
+      
+   /**
+    * below method is to prepare runtime environment and to prepare 
+    * the dataset and to persist to cassandra eventually
+    */    
     def main(args:Array[String]){
     
         logger.info("batch load has started at "+ new Date())
