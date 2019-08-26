@@ -25,28 +25,33 @@ object QueryInsightsWorker {
     * the the results for the query list
     */
     def main(args:Array[String]){
-      
-        /** parsing the runtime arguments from properties file or with defaults*/
-        if(args.length == 0)  arguments = new RuntimeArguments()
-        else arguments =  ArgumentParser.parseArguments(args(0))
-        logger.info(s"arguments resolved for this job run are ${arguments}")   
-        
-        /** initializing the spark session with given master url*/
-    		val sparkSession = SparkSession.builder().appName("FlightsInputLoader")
-    		                                          .master(arguments.masterURL)
-    		                                          .config("spark.cassandra.connection.host", arguments.dseConnectionHost)
-    		                                          .getOrCreate()    
-        import sparkSession.implicits._
-        logger.info("initialized spark session...")
-        
-        queryQuestion4Results(sparkSession, "", "", arguments)
-        
+        try{
+          /** parsing the runtime arguments from properties file or with defaults*/
+          if(args.length == 0)  arguments = new RuntimeArguments()
+          else arguments =  ArgumentParser.parseArguments(args(0))
+          logger.info(s"arguments resolved for this job run are ${arguments}")   
+          
+          /** initializing the spark session with given master url*/
+      		val sparkSession = SparkSession.builder().appName("FlightsInputLoader")
+      		                                          .master(arguments.masterURL)
+      		                                          .config("spark.cassandra.connection.host", arguments.dseConnectionHost)
+      		                                          .getOrCreate()    
+          import sparkSession.implicits._
+          logger.info("initialized spark session...")
+          
+          /*invoking the */
+          queryQuestion5n6Results(sparkSession, arguments)
+          
+       } catch {
+         case e : Throwable => { logger.error("executing the queries have failed due to $e")
+                                e.printStackTrace()}
+       } 
     }
   
     /** method to extract query 1 results
      */
     def queryQuestion1Results(sparkSession:SparkSession, arguments:RuntimeArguments) = {
-      
+      try{
         import sparkSession.sqlContext.implicits._
       
         val count = sparkSession.read.format("org.apache.spark.sql.cassandra")
@@ -59,13 +64,17 @@ object QueryInsightsWorker {
                                      .count()
         logger.info( "Query 1: how many flights orginated from the HNL airport code on 2012-01-25 ?")                             
         logger.info(s"Query 1: result = ${count}")
+        
+  	  } catch {
+          case e : Throwable => throw new Exception(s"failed to execute the query 1 due to $e")
+      }
     }
     
 
     /** method to extract query 2 results
      */
     def queryQuestion2Results(sparkSession:SparkSession, arguments:RuntimeArguments) = {
-      
+      try{
         import sparkSession.sqlContext.implicits._
       
         val count = sparkSession.read.format("org.apache.spark.sql.cassandra")
@@ -78,13 +87,16 @@ object QueryInsightsWorker {
         logger.info( "Query 2: how airport codes start with the letter 'A'?")                             
         logger.info(s"Query 2: result = ${count}")
         
+      } catch {
+          case e : Throwable => throw new Exception(s"failed to execute the query 2 due to $e")
+      }  
     } 
     
     
     /** method to extract query 3 results
      */
     def queryQuestion3Results(sparkSession:SparkSession, arguments:RuntimeArguments) = {
-      
+      try{
         import sparkSession.sqlContext.implicits._
         import org.apache.spark.sql.functions._
       
@@ -102,13 +114,16 @@ object QueryInsightsWorker {
         logger.info( "Query 3: What originating airport had most flights on 2012-01-23?")                             
         logger.info(s"Query 3: result = ${apMaxFlights(0).toString()}")
         
+      } catch {
+          case e : Throwable => throw new Exception(s"failed to execute the query 3 due to $e")
+      }  
     }
     
     
     /** method to extract query 4 results
      */
     def queryQuestion4Results(sparkSession:SparkSession, srcAirportCode:String, targetAirportCode:String, arguments:RuntimeArguments) = {
-      
+      try{
         import sparkSession.sqlContext.implicits._
         import org.apache.spark.sql.functions._
         
@@ -218,7 +233,62 @@ object QueryInsightsWorker {
                                .mode(org.apache.spark.sql.SaveMode.Append)
                                .save()   
                                
-        logger.info(s"Query 4: result 6: updated the dest entries of airport_departures table from ${srcAirportCode} -> ${targetAirportCode}")          
-        
+        logger.info(s"Query 4: result 6: updated the dest entries of airport_departures table from ${srcAirportCode} -> ${targetAirportCode}") 
+      } catch {
+          case e : Throwable => throw new Exception(s"failed to execute the query 4 due to $e")
+      }  
     }    
+    
+    
+    /** method to extract query 5 results
+     */
+    def queryQuestion5n6Results(sparkSession:SparkSession, arguments:RuntimeArguments) = {
+      try{
+        import sparkSession.sqlContext.implicits._
+        import org.apache.spark.sql.functions._
+      
+        logger.info("Query 5 : what is the route having most delays")
+        
+        /** retrieving the flights records having valid actual_elapsed_time and air_time*/
+        val flightsDF = sparkSession.read.format("org.apache.spark.sql.cassandra")
+                                        .options(Map( "keyspace" -> arguments.keySpaceName, "table" -> arguments.flightTableName ))
+                                        .load()
+                                        .select($"id",
+                                                $"origin",
+                                                $"dest",
+                                                $"dep_time",
+                                                $"arr_time",
+                                                $"actual_elapsed_time",
+                                                $"air_time")
+                                        .filter($"actual_elapsed_time" =!= $"air_time")
+          
+         val allRoutesDF = flightsDF.withColumn( "delay", ((unix_timestamp($"arr_time") - unix_timestamp($"dep_time"))/60) - 
+                                                            $"actual_elapsed_time" ) 
+
+         val delayedRoutesDF = allRoutesDF.filter($"delay" < 0)
+                                          .withColumn( "route", concat($"origin",lit("-"),$"dest"))
+                                          .groupBy($"route")
+                                          .agg(count($"delay") as "tripCount")
+                                          .orderBy($"tripCount".desc)
+         
+         logger.info("Query 5 : completed finding the delayed flights. routes with most delays are given below")
+         delayedRoutesDF.show()
+         
+         
+         logger.info("Query 6 : Is the airport activity a facto of the delays?")
+         
+         val ontimeAirportTimeMean:Double  =  allRoutesDF.filter($"delay" === 0).select(mean($"actual_elapsed_time" - $"air_time") as "ontimeMean").first().getLong(0)
+                                 
+         val delayedAirportTimeMean:Double =  allRoutesDF.filter($"delay" < 0).select(mean($"actual_elapsed_time" - $"air_time") as "delayedMean").first().getLong(0)
+         
+         if(delayedAirportTimeMean <= ontimeAirportTimeMean)
+             logger.info(s"Query 6 : average of delayed flights airport time ${delayedAirportTimeMean} is lesser that ontime flights airport time ${ontimeAirportTimeMean}, " +
+                           "which denotes that airport activity was not the actual reason for flights delay.")           
+         else
+             logger.info(s"Query 6 : average of delayed flights airport time ${delayedAirportTimeMean} is higher that ontime flights airport time ${ontimeAirportTimeMean}, " +
+                           "which denotes that airport activity was also the actual reason for flights delay.") 
+      } catch {
+          case e : Throwable => throw new Exception(s"failed to execute the query 5 and 6 due to $e")
+      }  
+    }
 }

@@ -2,3 +2,4 @@ target/
 .cache-main
 .settings/
 flights_from_pg.csv
+spark-warehouse/
