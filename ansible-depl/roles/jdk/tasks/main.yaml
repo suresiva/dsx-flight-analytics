@@ -1,0 +1,8 @@
+---
+- name: Install Java 1.8 and libaio
+  yum:  
+        name={{item}}
+        state=installed
+  with_items:
+        - java-1.8.0-openjdk
+        - libaio

@@ -1,0 +1,7 @@
+---
+- name : ping servers
+  hosts : dc1
+  remote_user : tpc949
+  tasks:
+      - action : ping
+        

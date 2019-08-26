@@ -1,0 +1,8 @@
+---
+- name: fetch nodetool status
+  shell: nodetool status
+  register: nodetool_result
+
+- name: print nodetool status
+  debug:
+        msg={{ nodetool_result.stdout_lines }}

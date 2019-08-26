@@ -1,0 +1,10 @@
+[mapr-opc-edge]
+azrmaprope00[1:3]
+[mapr-opc-compute]
+azrmapropc00[1:9]
+
+[mapr-aaet-compute]
+azruxmapr0[1:9]
+
+[mapr-std-compute]
+lxmaprstd300[1:5]

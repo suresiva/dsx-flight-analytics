@@ -1,0 +1,11 @@
+---
+- name: ping servers
+  hosts: dc1
+  gather_facts: True
+  remote_user: tpc949
+  become: true
+  become_method: sudo
+  tasks:
+          - include_role:
+                  name: /home/test/plat-ansible/roles/datastax
+        
