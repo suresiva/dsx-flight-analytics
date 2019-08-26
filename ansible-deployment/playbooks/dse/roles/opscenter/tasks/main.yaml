@@ -1,0 +1,14 @@
+---
+- name: install datastax opscenter
+  yum:
+        name=opscenter
+        state=installed
+  when: inventory_hostname == "dc1_node3"
+- debug:
+        msg: completed ops center installation on {{ inventory_hostname }}/{{ ansible_default_ipv4.address }}
+
+- name: start opscenter service
+  shell: service opscenterd  start
+  when: inventory_hostname == "dc1_node3"
+  args:
+        warn: false

@@ -4,5 +4,6 @@ ansible_port=22
 ansible_user=dcuser
 
 [dc1]
-dc1_node1 ansible_host=34.67.91.26
-dc1_node2 ansible_host=104.198.227.215
+dc1_node1 ansible_host=35.225.115.125
+dc1_node2 ansible_host=35.202.218.171
+dc1_node3 ansible_host=34.67.91.26

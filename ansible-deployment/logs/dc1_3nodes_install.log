@@ -1,0 +1,154 @@
+test@C257984:/mnt/c/Users/tpc949/next/datastax/workspace/dsx-flight-analytics/ansible-deployment$ ansible-playbook -i inventory/datastax  site.yml
+ [WARNING] Ansible is being run in a world writable directory (/mnt/c/Users/tpc949/next/datastax/workspace/dsx-flight-analytics/ansible-deployment), ignoring it as an ansible.cfg source. For more information see https://docs.ansible.com/ansible/devel/reference_appendices/config.html#cfg-in-world-writable-dir
+
+PLAY [install dse and enable services] ****************************************************************************************************************************************************************************
+
+TASK [Gathering Facts] ********************************************************************************************************************************************************************************************
+ok: [dc1_node2]
+ok: [dc1_node1]
+ok: [dc1_node3]
+
+TASK [dependencies : Install Java 1.8 and libaio] *****************************************************************************************************************************************************************
+[DEPRECATION WARNING]: Invoking "yum" only once while using a loop via squash_actions is deprecated. Instead of using a loop to supply multiple items and specifying `name: "{{item}}"`, please use `name:
+['java-1.8.0-openjdk', 'libaio']` and remove the loop. This feature will be removed in version 2.11. Deprecation warnings can be disabled by setting deprecation_warnings=False in ansible.cfg.
+[DEPRECATION WARNING]: Invoking "yum" only once while using a loop via squash_actions is deprecated. Instead of using a loop to supply multiple items and specifying `name: "{{item}}"`, please use `name:
+['java-1.8.0-openjdk', 'libaio']` and remove the loop. This feature will be removed in version 2.11. Deprecation warnings can be disabled by setting deprecation_warnings=False in ansible.cfg.
+[DEPRECATION WARNING]: Invoking "yum" only once while using a loop via squash_actions is deprecated. Instead of using a loop to supply multiple items and specifying `name: "{{item}}"`, please use `name:
+['java-1.8.0-openjdk', 'libaio']` and remove the loop. This feature will be removed in version 2.11. Deprecation warnings can be disabled by setting deprecation_warnings=False in ansible.cfg.
+changed: [dc1_node1] => (item=[u'java-1.8.0-openjdk', u'libaio'])
+changed: [dc1_node3] => (item=[u'java-1.8.0-openjdk', u'libaio'])
+changed: [dc1_node2] => (item=[u'java-1.8.0-openjdk', u'libaio'])
+
+TASK [datastax : copy Datastax repo file] *************************************************************************************************************************************************************************
+changed: [dc1_node2]
+changed: [dc1_node3]
+changed: [dc1_node1]
+
+TASK [datastax : import rpm key] **********************************************************************************************************************************************************************************
+changed: [dc1_node1]
+changed: [dc1_node3]
+changed: [dc1_node2]
+
+TASK [datastax : debug] *******************************************************************************************************************************************************************************************
+ok: [dc1_node1] => {
+    "msg": "added the repo setup, going to install dse 6.7.4 on dc1_node1/10.128.0.119"
+}
+ok: [dc1_node2] => {
+    "msg": "added the repo setup, going to install dse 6.7.4 on dc1_node2/10.128.0.125"
+}
+ok: [dc1_node3] => {
+    "msg": "added the repo setup, going to install dse 6.7.4 on dc1_node3/10.128.15.197"
+}
+
+TASK [datastax : install datastax enterprise] *********************************************************************************************************************************************************************
+changed: [dc1_node3]
+changed: [dc1_node1]
+changed: [dc1_node2]
+
+TASK [datastax : debug] *******************************************************************************************************************************************************************************************
+ok: [dc1_node1] => {
+    "msg": "completed dse 6.7.4 installation on dc1_node1/10.128.0.119"
+}
+ok: [dc1_node2] => {
+    "msg": "completed dse 6.7.4 installation on dc1_node2/10.128.0.125"
+}
+ok: [dc1_node3] => {
+    "msg": "completed dse 6.7.4 installation on dc1_node3/10.128.15.197"
+}
+
+TASK [datastax : copy updated cassandra.yaml to remote nodes] *****************************************************************************************************************************************************
+changed: [dc1_node1]
+changed: [dc1_node2]
+changed: [dc1_node3]
+
+TASK [datastax : copy updated dse file to remote nodes] ***********************************************************************************************************************************************************
+changed: [dc1_node2]
+changed: [dc1_node1]
+changed: [dc1_node3]
+
+TASK [datastax : copy updated rackdc file to remote nodes] ********************************************************************************************************************************************************
+changed: [dc1_node1]
+changed: [dc1_node2]
+changed: [dc1_node3]
+
+TASK [datastax : start dse node] **********************************************************************************************************************************************************************************
+changed: [dc1_node1]
+changed: [dc1_node2]
+changed: [dc1_node3]
+
+TASK [datastax : debug] *******************************************************************************************************************************************************************************************
+ok: [dc1_node1] => {
+    "msg": "started dse 6.7.4 on dc1_node1/10.128.0.119"
+}
+ok: [dc1_node2] => {
+    "msg": "started dse 6.7.4 on dc1_node2/10.128.0.125"
+}
+ok: [dc1_node3] => {
+    "msg": "started dse 6.7.4 on dc1_node3/10.128.15.197"
+}
+
+TASK [datastax : confirm dse start] *******************************************************************************************************************************************************************************
+ok: [dc1_node3]
+ok: [dc1_node2]
+ok: [dc1_node1]
+
+TASK [datastax : debug] *******************************************************************************************************************************************************************************************
+ok: [dc1_node1] => {
+    "msg": "port check failed = False"
+}
+ok: [dc1_node2] => {
+    "msg": "port check failed = False"
+}
+ok: [dc1_node3] => {
+    "msg": "port check failed = False"
+}
+
+RUNNING HANDLER [datastax : fetch nodetool status] ****************************************************************************************************************************************************************
+changed: [dc1_node1]
+changed: [dc1_node2]
+changed: [dc1_node3]
+
+RUNNING HANDLER [datastax : print nodetool status] ****************************************************************************************************************************************************************
+ok: [dc1_node1] => {
+    "msg": [
+        "Datacenter: dsxdc1",
+        "==================",
+        "Status=Up/Down",
+        "|/ State=Normal/Leaving/Joining/Moving",
+        "--  Address        Load       Tokens       Owns (effective)  Host ID                               Rack",
+        "UN  10.128.15.197  12.99 KiB  256          30.1%             a17ef271-2bdc-4484-afc9-48fc7ca8ebeb  rack1",
+        "UN  10.128.0.119   169.97 KiB  256          35.5%             880b95a8-8ab2-4e87-88ac-21d292b60cbe  rack1",
+        "UN  10.128.0.125   12.99 KiB  256          34.4%             81445907-bec1-4ac9-840e-6e85b76fad1f  rack1"
+    ]
+}
+ok: [dc1_node2] => {
+    "msg": [
+        "Datacenter: dsxdc1",
+        "==================",
+        "Status=Up/Down",
+        "|/ State=Normal/Leaving/Joining/Moving",
+        "--  Address        Load       Tokens       Owns (effective)  Host ID                               Rack",
+        "UN  10.128.15.197  12.99 KiB  256          30.1%             a17ef271-2bdc-4484-afc9-48fc7ca8ebeb  rack1",
+        "UN  10.128.0.119   12.99 KiB  256          35.5%             880b95a8-8ab2-4e87-88ac-21d292b60cbe  rack1",
+        "UN  10.128.0.125   170.53 KiB  256          34.4%             81445907-bec1-4ac9-840e-6e85b76fad1f  rack1"
+    ]
+}
+ok: [dc1_node3] => {
+    "msg": [
+        "Datacenter: dsxdc1",
+        "==================",
+        "Status=Up/Down",
+        "|/ State=Normal/Leaving/Joining/Moving",
+        "--  Address        Load       Tokens       Owns (effective)  Host ID                               Rack",
+        "UN  10.128.15.197  144.21 KiB  256          30.1%             a17ef271-2bdc-4484-afc9-48fc7ca8ebeb  rack1",
+        "UN  10.128.0.119   12.99 KiB  256          35.5%             880b95a8-8ab2-4e87-88ac-21d292b60cbe  rack1",
+        "UN  10.128.0.125   12.99 KiB  256          34.4%             81445907-bec1-4ac9-840e-6e85b76fad1f  rack1"
+    ]
+}
+
+PLAY RECAP ********************************************************************************************************************************************************************************************************
+dc1_node1                  : ok=16   changed=9    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+dc1_node2                  : ok=16   changed=9    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+dc1_node3                  : ok=16   changed=9    unreachable=0    failed=0    skipped=0    rescued=0    ignored=0
+
+test@C257984:/mnt/c/Users/tpc949/next/datastax/workspace/dsx-flight-analytics/ansible-deployment$

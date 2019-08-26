@@ -1,6 +1,6 @@
 ---
 spark_enabled: 1
 
-dc_name: dsx_dc1
+dc_name: dsxdc1
 
 rack_name: rack1
