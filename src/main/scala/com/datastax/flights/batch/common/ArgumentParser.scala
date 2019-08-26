@@ -25,7 +25,7 @@ object ArgumentParser {
       
       try{
         
-          logger.debug(s"parsing the $filePath to read application properties")
+          println(s"parsing the $filePath to read application properties")
           
           fileProperties.load(new FileInputStream(filePath))
           

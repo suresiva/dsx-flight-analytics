@@ -33,14 +33,14 @@ object DownstreamTablesLoader {
     */    
     def main(args:Array[String]){
     
-        logger.info("batch load has started at "+ new Date())
+        println("batch load has started at "+ new Date())
         
         try{
           
             /** parsing the runtime arguments from properties file or with defaults*/
             if(args.length == 0)  arguments = new RuntimeArguments()
             else arguments =  ArgumentParser.parseArguments(args(0))
-            logger.info(s"arguments resolved for this job run are ${arguments}")
+            println(s"arguments resolved for this job run are ${arguments}")
             
             
             /** initializing the spark context with given master url*/
@@ -49,7 +49,7 @@ object DownstreamTablesLoader {
                                                .set("spark.cassandra.connection.host", arguments.dseConnectionHost)
             
             val sc = new SparkContext(sparkConf)
-            logger.info("initialized spark context...")
+            println("initialized spark context...")
             
             /** to load the flight data from flights table using RDD cassandraTable*/
             val flightsRDD:RDD[CassandraRow] = sc.cassandraTable(arguments.keySpaceName, arguments.flightTableName)
@@ -67,18 +67,18 @@ object DownstreamTablesLoader {
                                                           "distance",
                                                           "air_time")
                                                           
-            logger.info(s"loaded the flights data in RDD[CassandraRow], # rows = ${flightsRDD.count()}")     
+            println(s"loaded the flights data in RDD[CassandraRow], # rows = ${flightsRDD.count()}")     
             
             /** to persist to the airports_departure table with required columns*/
             writeAirportDepartures(sc, flightsRDD)
-            logger.info("persisted the flights records to airport_departure table with required columns.")
+            println("persisted the flights records to airport_departure table with required columns.")
                 
             /** to persist to the flights_airtime table with required columns and air time buckets*/
             writeFlightsAirtime(sc, flightsRDD)
-            logger.info("persisted the flights records to flights_airtime table with required columns.")   
+            println("persisted the flights records to flights_airtime table with required columns.")   
             
         }catch {
-          case e : Throwable => { logger.error("loading extracted data into airport_departures & flights_airtime tables have failed due to $e")
+          case e : Throwable => { println("loading extracted data into airport_departures & flights_airtime tables have failed due to $e")
                                   e.printStackTrace()}
         }
     }
@@ -92,7 +92,7 @@ object DownstreamTablesLoader {
     try{
           /** creating the airport_departures table as needed*/
           cqlExecutor.createAirportDepartureTable(sc)
-          logger.info("created airport_departures table if it was not existed.")
+          println("created airport_departures table if it was not existed.")
           
           flightsRDD.saveToCassandra(  arguments.keySpaceName, 
                                        "airport_departures", 
@@ -123,7 +123,7 @@ object DownstreamTablesLoader {
       
       /** creating the flights_airtime table as needed*/
       cqlExecutor.createFlightsArrtimeTable(sc)
-      logger.info("created flights_airtime table if it was not existed.")      
+      println("created flights_airtime table if it was not existed.")      
     
       val flightsAirtimeRDD:RDD[CassandraRow] = flightsRDD.map(row => 
                                                                   CassandraRow.fromMap(  row.toMap + 

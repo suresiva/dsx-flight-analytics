@@ -68,14 +68,14 @@ object FlightsInputLoader {
   */
   def main(args:Array[String]){
     
-    logger.info("batch load has started at "+ new Date())
+    println("batch load has started at "+ new Date())
 
     try{
         
         /** parsing the runtime arguments from properties file or with defaults*/
         if(args.length == 0)  arguments = new RuntimeArguments()
         else arguments =  ArgumentParser.parseArguments(args(0))
-        logger.info(s"arguments resolved for this job run are ${arguments}")
+        println(s"arguments resolved for this job run are ${arguments}")
         
         
         /** initializing the spark session with given master url*/
@@ -85,13 +85,13 @@ object FlightsInputLoader {
     		                                          .getOrCreate()
     		                                          
         import sparkSession.implicits._
-        logger.info("initialized spark session...")
+        println("initialized spark session...")
         
         
         /** creating the required cassandra keyspace and table as needed*/
         cqlExecutor.createKeyspace(sparkSession.sparkContext)
         cqlExecutor.createFlightsTable(sparkSession.sparkContext)
-        logger.info("created keyspace and flights table if they were not existed.")
+        println("created keyspace and flights table if they were not existed.")
         
          
         /** loading the airports dataset as dataframe, rejecting rows with IATA as null*/
@@ -101,7 +101,7 @@ object FlightsInputLoader {
                                               .csv(s"${arguments.inputFilePath}/usa_airports_details.csv")
                                               .filter(col("IATA").isNotNull)
                                               
-        logger.info(s"loaded the aiports dataset with ${airportsDF.count()} rows")
+        println(s"loaded the aiports dataset with ${airportsDF.count()} rows")
         
         
         /** loading the given flights dataset with the possible immediate schema as dataframe*/
@@ -111,9 +111,8 @@ object FlightsInputLoader {
                                              .option("inferSchema", "false")
                                              .schema(flightInputSchema)
                                              .csv(s"${arguments.inputFilePath}/flights_from_pg.csv")
-                                             .filter(col("ID") <= 100)
                                              
-        logger.info(s"loaded the flights dataset with ${flightsBaseDF.count()} rows")
+        println(s"loaded the flights dataset with ${flightsBaseDF.count()} rows")
         
     
         /** initializing timestamp parsers, UTC timezone converter UDF*/
@@ -145,7 +144,7 @@ object FlightsInputLoader {
                                                         $"t2.TIMEZONE_CODE" as "DEST_TIMEZONE_CODE", 
                                                         timestampUtcUDF($"t1.FL_DATE", lpad($"t1.ARR_TIME",4,"0"), $"t2.TIMEZONE_CODE") as "ARR_TIME_UTC_MS_TMP")
                                                         
-        logger.info("successfully mapped the origin & dest airports timezone...\n" +
+        println("successfully mapped the origin & dest airports timezone...\n" +
                     "converted the dep_time and arr_time values into UTC milliseconds...\n"+
                     s"total rows mapped at the recent dataframe = ${flightsTzMappedDF.count()}")
         
@@ -165,7 +164,7 @@ object FlightsInputLoader {
                                                                                     $"ARR_TIME"))
                                                   .drop($"ARR_TIME_UTC_MS_TMP")
     
-        logger.info(s"corrected the arrival time fields. records in recent dataframe=${flightsArrTimeFixDF.count()}\n" +
+        println(s"corrected the arrival time fields. records in recent dataframe=${flightsArrTimeFixDF.count()}\n" +
                      "final dataframe schema is as below,")    
                      
         flightsArrTimeFixDF.printSchema()
@@ -193,18 +192,20 @@ object FlightsInputLoader {
                                                       col("DISTANCE") as "distance")
         
         /** persisting the dataframe into cassandra using cassandra-spark connector*/
-        logger.debug("persisting the final dataframe prepared into cassandra table...")                         
+        println("persisting the final dataframe prepared into cassandra table...")                         
         
         flightToTableDF.write.format("org.apache.spark.sql.cassandra")
                              .options( Map( "keyspace" -> arguments.keySpaceName, 
-                                            "table"    -> arguments.flightTableName))
+                                            "table"    -> arguments.flightTableName,
+                                            "confirm.truncate" -> "true"))
+                             .mode(org.apache.spark.sql.SaveMode.Overwrite)
                              .save()
     
-        logger.info(s"persisted the dataframe into ${arguments.keySpaceName}.${arguments.flightTableName}.")
-        logger.info(s"loaded ${flightToTableDF} rows. completed execution.")
+        println(s"persisted the dataframe into ${arguments.keySpaceName}.${arguments.flightTableName}.")
+        println(s"loaded ${flightToTableDF.count()} rows. completed execution.")
         
     } catch {
-      case e : Throwable => { logger.error("loading flight data to cassandra has failed due to $e")
+      case e : Throwable => { println("loading flight data to cassandra has failed due to $e")
                               e.printStackTrace()}
     }
   }
