@@ -71,7 +71,7 @@ object QueryInsightsWorker {
                                      .select( $"id" )
                                      .filter( $"origin" ===  "HNL" && 
                                               $"dep_time" >= "2012-01-25 00:00:00.000000+0000" && 
-                                              $"dep_time" <= "2012-01-25 23:59:59.000000+0000")
+                                              $"dep_time" < "2012-01-26 00:00:00.000000+0000")
                                      .count()
         println( "Query 1: how many flights orginated from the HNL airport code on 2012-01-25 ?")                             
         println(s"Query 1: result = ${count}")
@@ -276,7 +276,7 @@ object QueryInsightsWorker {
          val allRoutesDF = flightsDF.withColumn( "delay", ((unix_timestamp($"arr_time") - unix_timestamp($"dep_time"))/60) - 
                                                             $"actual_elapsed_time" ) 
                                                             
-        allRoutesDF.filter($"delay" =!= 0).show(1000)                                                    
+        //allRoutesDF.filter($"delay" =!= 0).show(1000)                                                    
 
          val delayedRoutesDF = allRoutesDF.filter($"delay" > 0)
                                           .withColumn( "route", concat($"origin",lit("-"),$"dest"))
@@ -285,7 +285,7 @@ object QueryInsightsWorker {
                                           .orderBy($"tripCount".desc)
          
          println("Query 5 : completed finding the delayed flights. routes with most delays are given below")
-         //delayedRoutesDF.show()
+         delayedRoutesDF.show(1)
          
          
          println("Query 6 : Is the airport activity a factor of the delay?")
@@ -294,12 +294,13 @@ object QueryInsightsWorker {
                                  
          val delayedAirportTimeMean:Double =  allRoutesDF.filter($"delay" < 0).select(mean($"actual_elapsed_time" - $"air_time") as "delayedMean").first().getDouble(0)
          
-         if(delayedAirportTimeMean <= ontimeAirportTimeMean)
-             println(s"Query 6 : average of delayed flights airport time ${delayedAirportTimeMean} is lesser that ontime flights airport time ${ontimeAirportTimeMean}, " +
-                           "which denotes that airport activity was not the actual reason for flights delay.")           
-         else
-             println(s"Query 6 : average of delayed flights airport time ${delayedAirportTimeMean} is higher that ontime flights airport time ${ontimeAirportTimeMean}, \n" +
-                           "which denotes that airport activity was also the actual reason for flights delay.") 
+         if(delayedAirportTimeMean <= ontimeAirportTimeMean){
+             println(s"Query 6 : average of delayed flights airport time ${delayedAirportTimeMean} is lesser that ontime flights airport time ${ontimeAirportTimeMean}") 
+             println("which denotes that airport activity was not the actual reason for flights delay.")           
+         }else{
+             println(s"Query 6 : average of delayed flights airport time ${delayedAirportTimeMean} is higher that ontime flights airport time ${ontimeAirportTimeMean}")
+             println("which denotes that airport activity was also the actual reason for flights delay.") 
+         }
       } catch {
           case e : Throwable => throw new Exception(s"failed to execute the query 5 and 6 due to $e")
       }  

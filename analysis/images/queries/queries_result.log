@@ -1,0 +1,76 @@
+parsing the files/job.properties to read application properties
+arguments resolved for this job run are RuntimeArguments(dse://10.128.0.119:9042?connection.local_dc=dsxdc1;connection.host=10.128.0.125,10.128.15.197;,flight-exercise/input/files/,10.128.0.119,dx_exercise,flights)
+WARN  2019-08-27 04:31:15,463 com.datastax.spark.connector.util.DeprecatedConfigParameter: spark.cassandra.connection.local_dc is deprecated (DSE 6.0.0) and has been automatically replaced with parameter spark.cassandra.connection.localDC. 
+initialized spark session...
+Query 1: how many flights orginated from the HNL airport code on 2012-01-25 ?
+Query 1: result = 284
+Query 2: how airport codes start with the letter 'A'?                           
+Query 2: result = 22
+Query 3: What originating airport had most flights on 2012-01-23?               
+Query 3: result = ATL
+Query 4: make a batch update to all records with 'BOS' airport code using spark and change it to 'TST'
+Query 4: result 1: 0 rows to update                                             
+Query 4: result 1: updated the origin entries of flights table from BOS -> TST  
+Query 4: result 2: 0 rows to update                                             
+Query 4: result 2: updated the dest entries of flights table from BOS -> TST    
+Query 4: result 3: 0 rows to update
+Query 4: result 3: updated the origin entries of flights_airtime table from BOS -> TST
+Query 4: result 4: 0 rows to update                                             
+Query 4: result 4: updated the dest entries of flights_airtime table from BOS -> TST
+Query 4: result 5: 0 rows to update
+0
+Query 4: result 5: droppped the BOS orgin airports from flights airtime table.
+Query 4: result 5: updated the origin entries of airport_departures table from BOS -> TST
+Query 4: result 6: 0 rows to update                                             
+Query 4: result 6: updated the dest entries of airport_departures table from BOS -> TST
+Query 5 : what is the route having most delays
++-------+------+----+-------------------+-------------------+-------------------+--------+-----+
+|     id|origin|dest|           dep_time|           arr_time|actual_elapsed_time|air_time|delay|
++-------+------+----+-------------------+-------------------+-------------------+--------+-----+
+|  70126|   STT| TST|2012-01-26 18:58:00|2012-01-26 23:18:00|                200|     180| 60.0|
+| 556854|   STT| TST|2012-01-27 20:06:00|2012-01-28 00:28:00|                202|     181| 60.0|
+| 549497|   STT| TST|2012-01-14 19:51:00|2012-01-14 23:51:00|                180|     163| 60.0|
+|   1054|   JFK| SAN|2012-01-17 17:14:00|2012-01-18 04:10:00|                296|     277|360.0|
+|  68485|   STT| TST|2012-01-23 19:14:00|2012-01-23 23:19:00|                185|     171| 60.0|
+|  63364|   STT| TST|2012-01-14 19:51:00|2012-01-14 23:51:00|                180|     163| 60.0|
+|  62839|   STT| TST|2012-01-13 19:32:00|2012-01-13 23:40:00|                188|     171| 60.0|
+|   1089|   JFK| LAX|2012-01-21 17:14:00|2012-01-22 04:10:00|                296|     277|360.0|
+| 556259|   STT| TST|2012-01-26 18:58:00|2012-01-26 23:18:00|                200|     180| 60.0|
+|   2210|   JFK| SEA|2012-01-18 17:14:00|2012-01-19 04:10:00|                296|     277|360.0|
+|   1367|   JFK| SFO|2012-01-21 17:14:00|2012-01-22 04:10:00|                296|     277|360.0|
+| 548972|   STT| TST|2012-01-13 19:32:00|2012-01-13 23:40:00|                188|     171| 60.0|
+|    704|   JFK| SFO|2012-01-23 17:14:00|2012-01-24 04:10:00|                296|     277|360.0|
+|1035105|   STT| TST|2012-01-13 19:32:00|2012-01-13 23:40:00|                188|     171| 60.0|
+|1039069|   STT| TST|2012-01-20 19:43:00|2012-01-21 00:15:00|                212|     184| 60.0|
+|    708|   JFK| SFO|2012-01-27 17:14:00|2012-01-28 04:10:00|                296|     277|360.0|
+|1042987|   STT| TST|2012-01-27 20:06:00|2012-01-28 00:28:00|                202|     181| 60.0|
+|1040751|   STT| TST|2012-01-23 19:14:00|2012-01-23 23:19:00|                185|     171| 60.0|
+| 554618|   STT| TST|2012-01-23 19:14:00|2012-01-23 23:19:00|                185|     171| 60.0|
+| 557943|   STT| TST|2012-01-29 19:15:00|2012-01-29 23:10:00|                175|     160| 60.0|
+| 552936|   STT| TST|2012-01-20 19:43:00|2012-01-21 00:15:00|                212|     184| 60.0|
+|  66803|   STT| TST|2012-01-20 19:43:00|2012-01-21 00:15:00|                212|     184| 60.0|
+|    935|   JFK| LAX|2012-01-21 17:14:00|2012-01-22 04:10:00|                296|     277|360.0|
+|    843|   JFK| SFO|2012-01-21 17:14:00|2012-01-22 04:10:00|                296|     277|360.0|
+|  72401|   STT| TST|2012-01-30 19:15:00|2012-01-30 23:22:00|                187|     170| 60.0|
+|  71229|   STT| TST|2012-01-28 19:18:00|2012-01-28 23:22:00|                184|     165| 60.0|
+|    929|   JFK| LAX|2012-01-15 17:14:00|2012-01-16 04:10:00|                296|     277|360.0|
+|1042392|   STT| TST|2012-01-26 18:58:00|2012-01-26 23:18:00|                200|     180| 60.0|
+|  70721|   STT| TST|2012-01-27 20:06:00|2012-01-28 00:28:00|                202|     181| 60.0|
+|1034533|   STT| TST|2012-01-12 19:23:00|2012-01-12 23:32:00|                189|     171| 60.0|
+| 557362|   STT| TST|2012-01-28 19:18:00|2012-01-28 23:22:00|                184|     165| 60.0|
+|  71810|   STT| TST|2012-01-29 19:15:00|2012-01-29 23:10:00|                175|     160| 60.0|
+|1044667|   STT| TST|2012-01-30 19:15:00|2012-01-30 23:22:00|                187|     170| 60.0|
+| 558534|   STT| TST|2012-01-30 19:15:00|2012-01-30 23:22:00|                187|     170| 60.0|
+|   1331|   JFK| SFO|2012-01-16 17:14:00|2012-01-17 04:10:00|                296|     277|360.0|
+|    180|   OGG| DFW|2012-01-23 22:14:00|2012-01-24 02:10:00|                296|     277|-60.0|
+|  62267|   STT| TST|2012-01-12 19:23:00|2012-01-12 23:32:00|                189|     171| 60.0|
+|1043495|   STT| TST|2012-01-28 19:18:00|2012-01-28 23:22:00|                184|     165| 60.0|
+| 548400|   STT| TST|2012-01-12 19:23:00|2012-01-12 23:32:00|                189|     171| 60.0|
+|   1039|   JFK| SAN|2012-01-02 17:14:00|2012-01-03 04:10:00|                296|     277|360.0|
+|1044076|   STT| TST|2012-01-29 19:15:00|2012-01-29 23:10:00|                175|     160| 60.0|
+|1035630|   STT| TST|2012-01-14 19:51:00|2012-01-14 23:51:00|                180|     163| 60.0|
++-------+------+----+-------------------+-------------------+-------------------+--------+-----+
+
+Query 5 : completed finding the delayed flights. routes with most delays are given below
+Query 6 : Is the airport activity a factor of the delay?
+Query 6 : average of delayed flights airport time 19.0 is lesser that ontime flights airport time 22.052820770977434, which denotes that airport activity was not the actual reason for flights delay.
