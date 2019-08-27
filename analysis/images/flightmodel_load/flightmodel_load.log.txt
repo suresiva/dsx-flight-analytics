@@ -1,0 +1,45 @@
+Tue Aug 27 02:33:22 UTC 2019 : loading the job configuration from job.properties file
+Tue Aug 27 02:33:29 UTC 2019 : dse spark master = dse://10.128.0.119:9042?connection.local_dc=dsxdc1;connection.host=10.128.15.197,10.128.0.125;
+Tue Aug 27 02:33:29 UTC 2019 : loading the given flight data set into cassandra table.
+Tue Aug 27 02:33:29 UTC 2019 : invloking the spark-submit command,
+batch load has started at Tue Aug 27 02:33:34 UTC 2019
+parsing the scripts/../files/job.properties to read application properties
+arguments resolved for this job run are RuntimeArguments(dse://10.128.0.119:9042?connection.local_dc=dsxdc1;connection.host=10.128.15.197,10.128.0.125;,flight-exercise/input/files/,10.128.0.119,dx_exercise,flights)
+WARN  2019-08-27 02:33:35,566 com.datastax.spark.connector.util.DeprecatedConfigParameter: spark.cassandra.connection.local_dc is deprecated (DSE 6.0.0) and has been automatically replaced with parameter spark.cassandra.connection.localDC.
+initialized spark session...
+created keyspace and flights table if they were not existed.
+loaded the aiports dataset with 1257 rows
+^M[Stage 4:>                                                        (0 + 12) / 12]^M[Stage 4:=============================>                            (6 + 6) / 12]^M[Stage 4:=================================>                        (7 + 5) / 12]^M                                                                                ^Mloaded the flights dataset with 1048576 rows
+^M[Stage 7:>                                                        (0 + 12) / 12]^M[Stage 7:======================================>                   (8 + 4) / 12]^M                                                                                ^Msuccessfully mapped the origin & dest airports timezone...
+converted the dep_time and arr_time values into UTC milliseconds...
+total rows mapped at the recent dataframe = 1048576
+^M[Stage 10:>                                                       (0 + 12) / 12]^M[Stage 10:==========================================>              (9 + 3) / 12]^M                                                                                ^Mcorrected the arrival time fields. records in recent dataframe=1048576
+final dataframe schema is as below,
+root
+ |-- ID: integer (nullable = true)
+ |-- YEAR: integer (nullable = true)
+ |-- DAY_OF_MONTH: integer (nullable = true)
+ |-- FL_DATE: date (nullable = true)
+ |-- AIRLINE_ID: integer (nullable = true)
+ |-- CARRIER: string (nullable = true)
+ |-- FL_NUM: integer (nullable = true)
+ |-- ORIGIN_AIRPORT_ID: integer (nullable = true)
+ |-- ORIGIN: string (nullable = true)
+ |-- ORIGIN_CITY_NAME: string (nullable = true)
+ |-- ORIGIN_STATE_ABR: string (nullable = true)
+ |-- DEST: string (nullable = true)
+ |-- DEST_CITY_NAME: string (nullable = true)
+ |-- DEST_STATE_ABR: string (nullable = true)
+ |-- DEP_TIME: string (nullable = true)
+ |-- ARR_TIME: string (nullable = true)
+ |-- ACTUAL_ELAPSED_TIME: integer (nullable = true)
+ |-- AIR_TIME: integer (nullable = true)
+ |-- DISTANCE: integer (nullable = true)
+ |-- ORIGIN_TIMEZONE_CODE: string (nullable = true)
+ |-- DEP_TIME_UTC_MS: long (nullable = true)
+ |-- DEST_TIMEZONE_CODE: string (nullable = true)
+ |-- ARR_TIME_UTC_MS: long (nullable = true)
+
+persisting the final dataframe prepared into cassandra table...
+^M[Stage 13:>                                                       (0 + 12) / 12]^M[Stage 13:====>                                                   (1 + 11) / 12]^M[Stage 13:=========>                                              (2 + 10) / 12]^M[Stage 13:===================>                                     (4 + 8) / 12]^M[Stage 13:============================>                            (6 + 6) / 12]^M[Stage 13:======================================>                  (8 + 4) / 12]^M[Stage 13:==============================================>         (10 + 2) / 12]^M                                                                                ^Mpersisted the dataframe into dx_exercise.flights.
+^M[Stage 15:===================================================>    (11 + 1) / 12]^M                                                                                ^Mloaded 1048576 rows. completed execution.

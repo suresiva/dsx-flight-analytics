@@ -18,7 +18,7 @@ class CqlDmlExecutor {
 
           CassandraConnector(context).withSessionDo{
                   session => session.execute(s"create keyspace if not exists dx_exercise "+
-                                              "with replication = {'class' : 'SimpleStrategy', 'replication_factor':1} ;")
+                                              "with replication = {'class' : 'NetworkTopologyStrategy', 'dsxdc1':2} ;")
           }
   	  } catch {
           case e : Throwable => throw new Exception(s"creating key space has failed due to $e")
